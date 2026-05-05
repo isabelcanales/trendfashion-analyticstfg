@@ -1,5 +1,6 @@
 "use client";
 
+import TransitionLink from "@/components/animations/TransitionLink";
 import { useEffect, useState } from "react";
 import { getNews } from "@/lib/news";
 
@@ -43,59 +44,66 @@ export default function NewsSection() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const saveArticles = () => {
+    sessionStorage.setItem("trendfashion_news", JSON.stringify(articles));
+  };
+
   useEffect(() => {
     getNews()
       .then((data) => {
-        const validArticles = (data.articles || []).filter((article: Article) => {
-          if (
-            !article.title ||
-            !article.description ||
-            !article.url ||
-            !article.urlToImage
-          ) {
-            return false;
+        const validArticles = (data.articles || []).filter(
+          (article: Article) => {
+            if (
+              !article.title ||
+              !article.description ||
+              !article.url ||
+              !article.urlToImage
+            ) {
+              return false;
+            }
+
+            const text =
+              `${article.title} ${article.description}`.toLowerCase();
+
+            const goodKeywords = [
+              "fashion",
+              "runway",
+              "collection",
+              "fashion week",
+              "luxury",
+              "designer",
+              "brand",
+              "style",
+              "outfit",
+              "trend",
+              "zara",
+              "gucci",
+              "prada",
+              "chanel",
+              "dior",
+            ];
+
+            const badKeywords = [
+              "baby",
+              "hospital",
+              "kiss",
+              "boyfriend",
+              "girlfriend",
+              "celebrity",
+              "couple",
+              "drama",
+              "tv show",
+              "reality",
+              "gossip",
+              "award show",
+            ];
+
+            const isGood = goodKeywords.some((k) => text.includes(k));
+            const isBad = badKeywords.some((k) => text.includes(k));
+
+            return isGood && !isBad;
           }
-
-          const text = `${article.title} ${article.description}`.toLowerCase();
-
-          const goodKeywords = [
-            "fashion",
-            "runway",
-            "collection",
-            "fashion week",
-            "luxury",
-            "designer",
-            "brand",
-            "style",
-            "outfit",
-            "trend",
-            "zara",
-            "gucci",
-            "prada",
-            "chanel",
-            "dior",
-          ];
-
-          const badKeywords = [
-            "baby",
-            "hospital",
-            "kiss",
-            "boyfriend",
-            "girlfriend",
-            "celebrity",
-            "couple",
-            "drama",
-            "tv show",
-            "reality",
-            "gossip",
-            "award show",
-          ];
-
-          const isGood = goodKeywords.some((k) => text.includes(k));
-          const isBad = badKeywords.some((k) => text.includes(k));
-
-          return isGood && !isBad;
-        });
+        );
 
         setArticles(validArticles.slice(0, 10));
       })
@@ -111,7 +119,7 @@ export default function NewsSection() {
   const secondaryArticles = articles.slice(1, 10);
 
   return (
-  <section className="mx-auto w-full max-w-7xl px-6 py-20 lg:px-8">
+    <section className="mx-auto w-full max-w-7xl px-6 py-20 lg:px-8">
       <div className="mb-10 flex flex-col gap-3">
         <span className="text-xs font-bold uppercase tracking-[0.35em] text-[#8a2638]">
           Fashion News
@@ -138,11 +146,10 @@ export default function NewsSection() {
       ) : (
         <>
           {featuredArticle && (
-            <a
+            <TransitionLink
               href="/news/0"
-              onClick={() => {
-                sessionStorage.setItem("trendfashion_news", JSON.stringify(articles));
-              }}
+              onClick={saveArticles}
+              className="group mb-8 block overflow-hidden rounded-[32px] border border-[#eadbd4] bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
             >
               <div className="relative min-h-[340px] overflow-hidden">
                 <img
@@ -190,17 +197,15 @@ export default function NewsSection() {
                   </span>
                 </div>
               </div>
-            </a>
+            </TransitionLink>
           )}
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 2xl:grid-cols-3">
             {secondaryArticles.map((article, index) => (
-              <a
+              <TransitionLink
                 key={`${article.url}-${index}`}
                 href={`/news/${index + 1}`}
-                onClick={() => {
-                  sessionStorage.setItem("trendfashion_news", JSON.stringify(articles));
-                }}
+                onClick={saveArticles}
                 className="group overflow-hidden rounded-[28px] border border-[#eadbd4] bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
               >
                 <div className="relative aspect-[16/9] overflow-hidden">
@@ -241,7 +246,7 @@ export default function NewsSection() {
                     </span>
                   </div>
                 </div>
-              </a>
+              </TransitionLink>
             ))}
           </div>
         </>

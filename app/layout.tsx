@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-import { Libre_Baskerville, Inter, Geist } from "next/font/google";
+import { Libre_Baskerville, Geist } from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
 import CustomCursor from "@/components/animations/CustomCursor";
+import RouteTransitionProvider from "@/components/animations/RouteTransitionProvider";
 import { cn } from "@/lib/utils";
 
 const libre = Libre_Baskerville({
@@ -12,7 +13,10 @@ const libre = Libre_Baskerville({
   variable: "--font-serif",
 });
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
 
 export const metadata: Metadata = {
   title: "TrendFashion Analytics",
@@ -27,9 +31,11 @@ export default function RootLayout({
   return (
     <html lang="es" className={cn("font-sans", geist.variable)}>
       <body className={`${geist.variable} ${libre.variable} font-sans`}>
-        <CustomCursor />
-        <Navbar />
-        {children}
+        <RouteTransitionProvider>
+          <CustomCursor />
+          <Navbar />
+          {children}
+        </RouteTransitionProvider>
       </body>
     </html>
   );

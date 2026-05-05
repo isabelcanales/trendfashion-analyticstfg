@@ -13,7 +13,7 @@ export async function GET() {
   try {
     const url = new URL("https://newsapi.org/v2/everything");
 
-    // 🔥 Query optimizada para moda
+    // Query optimizada para moda
     url.searchParams.set(
       "q",
       "fashion trends OR luxury fashion OR runway OR streetwear OR zara OR gucci OR prada OR chanel"
@@ -23,7 +23,7 @@ export async function GET() {
     url.searchParams.set("sortBy", "publishedAt");
     url.searchParams.set("pageSize", "20");
 
-    // 🚫 Evitar contenido basura
+    // Evitar contenido basura
     url.searchParams.set(
       "excludeDomains",
       "tmz.com,thesun.co.uk,dailymail.co.uk"

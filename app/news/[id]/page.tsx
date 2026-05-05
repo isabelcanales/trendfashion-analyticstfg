@@ -1,5 +1,6 @@
 "use client";
 
+import TransitionLink from "@/components/animations/TransitionLink";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getNews } from "@/lib/news";
@@ -37,68 +38,128 @@ export default function NewsDetailPage() {
   const id = Number(params.id);
 
   const [article, setArticle] = useState<Article | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    getNews().then((data) => {
-      const articles = data.articles || [];
-      setArticle(articles[id]);
-    });
+    async function loadArticle() {
+      try {
+        const savedNews = sessionStorage.getItem("trendfashion_news");
+
+        if (savedNews) {
+          const articles = JSON.parse(savedNews) as Article[];
+          const selectedArticle = articles[id];
+
+          if (selectedArticle) {
+            setArticle(selectedArticle);
+            return;
+          }
+        }
+
+        const data = await getNews();
+        const articles = data.articles || [];
+        const selectedArticle = articles[id];
+
+        if (!selectedArticle) {
+          setError("No se ha encontrado esta noticia.");
+          return;
+        }
+
+        setArticle(selectedArticle);
+      } catch (error) {
+        console.error("Error al cargar la noticia:", error);
+        setError("No se ha podido cargar la noticia.");
+      }
+    }
+
+    loadArticle();
   }, [id]);
 
-  if (!article) {
-    return <div className="p-10">Cargando noticia...</div>;
+  if (error) {
+    return (
+      <div className="mx-auto max-w-5xl px-6 py-16">
+        <TransitionLink
+          href="/news"
+          className="mb-8 inline-flex rounded-full border border-[#eadbd4] bg-white px-5 py-3 text-sm font-semibold text-[#8a2638] shadow-sm transition hover:-translate-x-1"
+        >
+          ← Volver a noticias
+        </TransitionLink>
+
+        <p className="rounded-2xl border border-[#eadbd4] bg-white p-6 text-[#8a2638] shadow-sm">
+          {error}
+        </p>
+      </div>
+    );
   }
 
-  const fullText = `${article.title} ${article.description}`.toLowerCase();
+  if (!article) {
+    return (
+      <div className="mx-auto max-w-5xl px-6 py-16">
+        <p className="rounded-2xl border border-[#eadbd4] bg-white p-6 text-[#6d6260] shadow-sm">
+          Cargando noticia...
+        </p>
+      </div>
+    );
+  }
+
+  const fullText = `${article.title || ""} ${
+    article.description || ""
+  }`.toLowerCase();
+
   const brands = detectBrands(fullText);
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-16">
-      {/* HERO */}
-      <div className="mb-10 overflow-hidden rounded-[30px]">
-        <img
-          src={article.urlToImage}
-          alt={article.title}
-          className="h-[420px] w-full object-cover"
-        />
-      </div>
+      <TransitionLink
+        href="/news"
+        className="mb-8 inline-flex rounded-full border border-[#eadbd4] bg-white px-5 py-3 text-sm font-semibold text-[#8a2638] shadow-sm transition hover:-translate-x-1"
+      >
+        ← Volver a noticias
+      </TransitionLink>
 
-      {/* META */}
+      {article.urlToImage && (
+        <div className="mb-10 overflow-hidden rounded-[30px]">
+          <img
+            src={article.urlToImage}
+            alt={article.title}
+            className="h-[420px] w-full object-cover"
+          />
+        </div>
+      )}
+
       <p className="mb-4 text-xs uppercase tracking-[0.2em] text-[#8a2638]">
-        {article.source?.name || "Fashion Source"} · {formatDate(article.publishedAt)}
+        {article.source?.name || "Fashion Source"} ·{" "}
+        {formatDate(article.publishedAt)}
       </p>
 
-      {/* TITLE */}
       <h1 className="mb-6 font-serif text-4xl font-bold leading-tight text-[#151111] md:text-5xl">
         {article.title}
       </h1>
 
-      {/* SUBTITLE */}
       <p className="mb-10 text-lg leading-8 text-[#6d6260]">
         {article.description}
       </p>
 
-      {/* CONTENT SIMULADO */}
       <div className="mb-14 space-y-6 text-[15px] leading-7 text-[#3a2f2c]">
         <p>
           Esta noticia refleja una tendencia relevante dentro del sector moda,
-          donde se observa una evolución en estilos, narrativa visual y posicionamiento de marca.
+          donde se observa una evolución en estilos, narrativa visual y
+          posicionamiento de marca.
         </p>
 
         <p>
-          En los últimos meses, el ecosistema digital ha amplificado este tipo de contenidos,
-          generando un aumento significativo en menciones y engagement en plataformas sociales.
+          En los últimos meses, el ecosistema digital ha amplificado este tipo
+          de contenidos, generando un aumento significativo en menciones y
+          engagement en plataformas sociales.
         </p>
 
         <p>
-          Este fenómeno suele estar asociado a cambios en comportamiento del consumidor,
-          especialmente en segmentos jóvenes y audiencias interesadas en lujo accesible.
+          Este fenómeno suele estar asociado a cambios en comportamiento del
+          consumidor, especialmente en segmentos jóvenes y audiencias interesadas
+          en lujo accesible.
         </p>
       </div>
 
-      {/* BLOQUE ANALÍTICO */}
       <div className="mb-14 grid gap-6 md:grid-cols-2">
-        {/* IMPACTO */}
         <div className="rounded-2xl border border-[#eadbd4] bg-white p-6 shadow-sm">
           <h3 className="mb-4 font-serif text-xl font-bold">
             Impacto en tendencias
@@ -110,7 +171,6 @@ export default function NewsDetailPage() {
           </p>
         </div>
 
-        {/* MARCAS */}
         <div className="rounded-2xl border border-[#eadbd4] bg-white p-6 shadow-sm">
           <h3 className="mb-4 font-serif text-xl font-bold">
             Marcas detectadas
@@ -135,8 +195,7 @@ export default function NewsDetailPage() {
         </div>
       </div>
 
-      {/* CTA */}
-      <div className="flex items-center justify-between border-t border-[#f0e3de] pt-8">
+      <div className="flex flex-col gap-4 border-t border-[#f0e3de] pt-8 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-xs uppercase tracking-[0.25em] text-[#8a2638]">
           Fuente original
         </span>
@@ -145,7 +204,7 @@ export default function NewsDetailPage() {
           href={article.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 rounded-full bg-[#151111] px-6 py-3 text-sm text-white transition hover:translate-x-1"
+          className="flex w-fit items-center gap-2 rounded-full bg-[#151111] px-6 py-3 text-sm text-white transition hover:translate-x-1"
         >
           Ver noticia completa →
         </a>
