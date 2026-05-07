@@ -1,22 +1,121 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import PageContainer from "@/components/layout/PageContainer";
 import DashboardClient from "@/components/dashboard/DashboardClient";
 
-const featuredNews = {
-  title: "El lujo y la moda rápida lideran la conversación digital en 2026",
+type NewsArticle = {
+  title?: string;
+  description?: string;
+  url?: string;
+  urlToImage?: string;
+  image?: string;
+  imageUrl?: string;
+  publishedAt?: string;
+  date?: string;
+  slug?: string;
+  source?: {
+    name?: string;
+  };
+};
+
+const fallbackFeaturedNews = {
+  title: "Noticia destacada del sector moda",
   description:
-    "Las marcas de moda aumentan su presencia online gracias a campañas virales, colaboraciones estratégicas y nuevas tendencias impulsadas por redes sociales.",
-  date: "Abril 2026",
+    "Consulta las últimas noticias del sector moda, marcas destacadas y tendencias digitales.",
+  date: "Actualidad",
   href: "/news",
   image:
     "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1600&auto=format&fit=crop",
 };
 
+function createSlug(title: string) {
+  return title
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
+function formatDate(article: NewsArticle) {
+  if (article.date) return article.date;
+
+  if (!article.publishedAt) return "Actualidad";
+
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(article.publishedAt));
+}
+
+function getFeaturedHref(article: NewsArticle) {
+  if (article.slug) {
+    return `/news/${article.slug}`;
+  }
+
+  if (article.title) {
+    return `/news/${createSlug(article.title)}`;
+  }
+
+  return "/news";
+}
+
+function getFeaturedImage(article: NewsArticle) {
+  return (
+    article.imageUrl ||
+    article.urlToImage ||
+    article.image ||
+    fallbackFeaturedNews.image
+  );
+}
+
 export default function HomePage() {
+  const [featuredNews, setFeaturedNews] = useState(fallbackFeaturedNews);
+
+  useEffect(() => {
+    async function loadFeaturedNews() {
+      try {
+        const response = await fetch("/api/news", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("No se pudieron cargar las noticias.");
+        }
+
+        const data = await response.json();
+
+        const articles: NewsArticle[] = Array.isArray(data)
+          ? data
+          : data.articles ?? [];
+
+        const firstArticle = articles[0];
+
+        if (!firstArticle) return;
+
+        setFeaturedNews({
+          title: firstArticle.title || fallbackFeaturedNews.title,
+          description:
+            firstArticle.description || fallbackFeaturedNews.description,
+          date: formatDate(firstArticle),
+          href: getFeaturedHref(firstArticle),
+          image: getFeaturedImage(firstArticle),
+        });
+      } catch (error) {
+        console.error("Error cargando noticia destacada:", error);
+      }
+    }
+
+    loadFeaturedNews();
+  }, []);
+
   return (
     <PageContainer>
       {/* PORTADA */}
-<section className="relative left-1/2 -mt-10 w-screen -translate-x-1/2 overflow-hidden bg-[#f7eee9] px-6 pb-24 pt-14 md:-mt-14 md:px-10 md:pb-32 md:pt-20">
+      <section className="relative left-1/2 -mt-10 w-screen -translate-x-1/2 overflow-hidden bg-[#f7eee9] px-6 pb-24 pt-14 md:-mt-14 md:px-10 md:pb-32 md:pt-20">
         <div className="absolute right-[-120px] top-[-120px] h-[320px] w-[320px] rounded-full bg-[#e8a9b6]/30 blur-3xl" />
         <div className="absolute bottom-[-140px] left-[-120px] h-[360px] w-[360px] rounded-full bg-[#151111]/10 blur-3xl" />
 
@@ -30,8 +129,8 @@ export default function HomePage() {
           </h1>
 
           <p className="mt-8 max-w-2xl text-base leading-8 text-[#6d6260] md:text-lg">
-            TrendFashion Analytics es una plataforma visual para comparar marcas,
-            detectar tendencias, medir popularidad digital y analizar la
+            TrendFashion Analytics es una plataforma visual para comparar
+            marcas, detectar tendencias, medir popularidad digital y analizar la
             reputación del sector moda.
           </p>
 
@@ -92,23 +191,14 @@ export default function HomePage() {
 
       {/* NOTICIA DESTACADA */}
       <section className="pb-24">
-        <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
-          <div>
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.35em] text-[#8a2638]">
-              Actualidad
-            </p>
+        <div className="mb-8">
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.35em] text-[#8a2638]">
+            Actualidad
+          </p>
 
-            <h2 className="max-w-3xl font-serif text-4xl font-bold leading-tight text-[#171111] md:text-5xl">
-              Noticia destacada del sector moda
-            </h2>
-          </div>
-
-          <Link
-            href="/news"
-            className="w-fit rounded-full border border-[#d8c7b8] bg-[#fffdf9] px-5 py-3 text-sm font-semibold text-[#171111] transition hover:bg-[#171111] hover:text-white"
-          >
-            Ver todas las noticias
-          </Link>
+          <h2 className="max-w-3xl font-serif text-4xl font-bold leading-tight text-[#171111] md:text-5xl">
+            Noticia destacada del sector moda
+          </h2>
         </div>
 
         <article className="grid overflow-hidden rounded-[2rem] border border-[#eaded4] bg-[#fffdf9] shadow-[0_24px_70px_rgba(60,35,30,0.08)] md:grid-cols-[0.9fr_1.1fr]">
@@ -143,10 +233,19 @@ export default function HomePage() {
               href={featuredNews.href}
               className="w-fit rounded-full bg-[#171111] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-[#2a2020]"
             >
-              Leer más noticias
+              Leer noticia completa
             </Link>
           </div>
         </article>
+
+        <div className="mt-8 flex justify-center md:justify-end">
+          <Link
+            href="/news"
+            className="w-fit rounded-full border border-[#d8c7b8] bg-[#fffdf9] px-6 py-3 text-sm font-semibold text-[#171111] transition hover:bg-[#171111] hover:text-white"
+          >
+            Ver todas las noticias
+          </Link>
+        </div>
       </section>
     </PageContainer>
   );

@@ -9,11 +9,29 @@ type Article = {
   description: string;
   url: string;
   urlToImage: string;
+  slug?: string;
   source?: {
     name?: string;
   };
   publishedAt?: string;
 };
+
+function createSlug(title: string) {
+  return title
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
+function getArticleHref(article: Article) {
+  if (article.slug) {
+    return `/news/${article.slug}`;
+  }
+
+  return `/news/${createSlug(article.title)}`;
+}
 
 function getTag(article: Article) {
   const text = `${article.title} ${article.description}`.toLowerCase();
@@ -23,9 +41,12 @@ function getTag(article: Article) {
   if (text.includes("prada")) return "Prada";
   if (text.includes("chanel")) return "Chanel";
   if (text.includes("dior")) return "Dior";
+  if (text.includes("mango")) return "Mango";
+  if (text.includes("pasarela")) return "Pasarela";
   if (text.includes("fashion week")) return "Fashion Week";
   if (text.includes("runway")) return "Runway";
-  if (text.includes("luxury")) return "Luxury";
+  if (text.includes("luxury") || text.includes("lujo")) return "Luxury";
+  if (text.includes("moda")) return "Moda";
 
   return "Fashion";
 }
@@ -44,65 +65,19 @@ export default function NewsSection() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const saveArticles = () => {
+  function saveArticles() {
     sessionStorage.setItem("trendfashion_news", JSON.stringify(articles));
-  };
+  }
 
   useEffect(() => {
     getNews()
       .then((data) => {
         const validArticles = (data.articles || []).filter(
-          (article: Article) => {
-            if (
-              !article.title ||
-              !article.description ||
-              !article.url ||
-              !article.urlToImage
-            ) {
-              return false;
-            }
-
-            const text =
-              `${article.title} ${article.description}`.toLowerCase();
-
-            const goodKeywords = [
-              "fashion",
-              "runway",
-              "collection",
-              "fashion week",
-              "luxury",
-              "designer",
-              "brand",
-              "style",
-              "outfit",
-              "trend",
-              "zara",
-              "gucci",
-              "prada",
-              "chanel",
-              "dior",
-            ];
-
-            const badKeywords = [
-              "baby",
-              "hospital",
-              "kiss",
-              "boyfriend",
-              "girlfriend",
-              "celebrity",
-              "couple",
-              "drama",
-              "tv show",
-              "reality",
-              "gossip",
-              "award show",
-            ];
-
-            const isGood = goodKeywords.some((k) => text.includes(k));
-            const isBad = badKeywords.some((k) => text.includes(k));
-
-            return isGood && !isBad;
-          }
+          (article: Article) =>
+            article.title &&
+            article.description &&
+            article.url &&
+            article.urlToImage
         );
 
         setArticles(validArticles.slice(0, 10));
@@ -147,7 +122,7 @@ export default function NewsSection() {
         <>
           {featuredArticle && (
             <TransitionLink
-              href="/news/0"
+              href={getArticleHref(featuredArticle)}
               onClick={saveArticles}
               className="group mb-8 block overflow-hidden rounded-[32px] border border-[#eadbd4] bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
             >
@@ -204,7 +179,7 @@ export default function NewsSection() {
             {secondaryArticles.map((article, index) => (
               <TransitionLink
                 key={`${article.url}-${index}`}
-                href={`/news/${index + 1}`}
+                href={getArticleHref(article)}
                 onClick={saveArticles}
                 className="group overflow-hidden rounded-[28px] border border-[#eadbd4] bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
               >

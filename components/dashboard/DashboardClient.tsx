@@ -7,23 +7,46 @@ import BrandRankingTable from "@/components/dashboard/BrandRankingTable";
 import DashboardFilters from "@/components/dashboard/DashboardFilters";
 import FashionMetricCard from "@/components/home/FashionMetricCard";
 import Reveal from "@/components/animations/Reveal";
-import { fashionBrands, fashionTrendData } from "@/data/fashionData";
-import { BrandCategory, MetricType } from "@/types/fashion";
+import { getBrandMetrics } from "@/lib/brandMetrics";
+import { BrandCategory, BrandMetricsResponse } from "@/types/brandMetrics";
+import { MetricType } from "@/types/fashion";
 
 type CategoryFilter = BrandCategory | "Todas";
 
-type BrandMetricsResponse = {
-  updatedAt: string;
-  totalMentions: number;
-  averagePopularity: number;
-  averageSentiment: number;
-  ranking: {
-    brand: string;
-    mentions: number;
-  }[];
-  chartData: Record<string, string | number>[];
-  source: "newsapi" | "fallback";
+type DashboardBrand = {
+  name: string;
+  category: BrandCategory;
+  mentions: number;
+  popularity: number;
+  sentiment: number;
 };
+
+function getMetricValue(brand: DashboardBrand, metric: MetricType) {
+  if (metric === "mentions") return brand.mentions;
+  if (metric === "popularity") return brand.popularity;
+  if (metric === "sentiment") return brand.sentiment;
+
+  return brand.mentions;
+}
+
+function filterChartDataByBrands(
+  chartData: Record<string, string | number>[],
+  visibleBrands: string[]
+) {
+  return chartData.map((row) => {
+    const filteredRow: Record<string, string | number> = {
+      month: row.month,
+    };
+
+    visibleBrands.forEach((brand) => {
+      if (row[brand] !== undefined) {
+        filteredRow[brand] = row[brand];
+      }
+    });
+
+    return filteredRow;
+  });
+}
 
 export default function DashboardClient() {
   const [category, setCategory] = useState<CategoryFilter>("Todas");
@@ -34,74 +57,90 @@ export default function DashboardClient() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function loadBrandMetrics() {
-      try {
-        const response = await fetch("/api/brand-metrics");
+  async function loadBrandMetrics() {
+    try {
+      console.log("Cargando /api/brand-metrics...");
 
-        if (!response.ok) {
-          throw new Error("Error al cargar métricas");
-        }
+      const data = await getBrandMetrics();
 
-        const data = (await response.json()) as BrandMetricsResponse;
-        setBrandMetrics(data);
-      } catch (error) {
-        console.error("Error loading brand metrics:", error);
-        setBrandMetrics(null);
-      } finally {
-        setIsLoading(false);
-      }
+      console.log("Datos recibidos:", data);
+
+      setBrandMetrics(data);
+    } catch (error) {
+      console.error("Error loading brand metrics:", error);
+      setBrandMetrics(null);
+    } finally {
+      console.log("Carga terminada");
+      setIsLoading(false);
     }
+  }
 
-    loadBrandMetrics();
-  }, []);
+  loadBrandMetrics();
+}, []);
 
-  const shouldUseApiData = category === "Todas" && brandMetrics !== null;
+  const allBrands = useMemo<DashboardBrand[]>(() => {
+    if (!brandMetrics) return [];
+
+    const maxMentions = brandMetrics.ranking[0]?.mentions || 1;
+
+    return brandMetrics.ranking.map((brand) => {
+      const popularity = Math.round((brand.mentions / maxMentions) * 100);
+
+      return {
+        name: brand.brand,
+        category: brand.category,
+        mentions: brand.mentions,
+        popularity,
+        sentiment: brandMetrics.averageSentiment,
+      };
+    });
+  }, [brandMetrics]);
 
   const filteredBrands = useMemo(() => {
-    if (category === "Todas") return fashionBrands;
-    return fashionBrands.filter((brand) => brand.category === category);
-  }, [category]);
+    if (category === "Todas") return allBrands;
+
+    return allBrands.filter((brand) => brand.category === category);
+  }, [allBrands, category]);
 
   const filteredTrendData = useMemo(() => {
-    if (shouldUseApiData) {
-      return brandMetrics.chartData;
-    }
+    if (!brandMetrics) return [];
 
-    if (category === "Todas") return fashionTrendData;
+    const visibleBrands = filteredBrands.map((brand) => brand.name);
 
-    return fashionTrendData.filter((item) => item.category === category);
-  }, [category, shouldUseApiData, brandMetrics]);
+    return filterChartDataByBrands(brandMetrics.chartData, visibleBrands);
+  }, [brandMetrics, filteredBrands]);
 
-  const totalMentions = shouldUseApiData
-    ? brandMetrics.totalMentions
-    : filteredBrands.reduce((total, brand) => total + brand.mentions, 0);
+  const totalMentions = useMemo(() => {
+    return filteredBrands.reduce((total, brand) => total + brand.mentions, 0);
+  }, [filteredBrands]);
 
-  const averagePopularity = shouldUseApiData
-    ? brandMetrics.averagePopularity
-    : Math.round(
-        filteredBrands.reduce((total, brand) => total + brand.popularity, 0) /
-          filteredBrands.length
-      );
+  const averagePopularity = useMemo(() => {
+    if (!filteredBrands.length) return 0;
 
-  const averageSentiment = shouldUseApiData
-    ? brandMetrics.averageSentiment
-    : Math.round(
-        filteredBrands.reduce((total, brand) => total + brand.sentiment, 0) /
-          filteredBrands.length
-      );
+    return Math.round(
+      filteredBrands.reduce((total, brand) => total + brand.popularity, 0) /
+        filteredBrands.length
+    );
+  }, [filteredBrands]);
 
-  const ranking = shouldUseApiData
-    ? brandMetrics.ranking.map((brand) => ({
-        name: brand.brand,
-        score: brand.mentions,
+  const averageSentiment = useMemo(() => {
+    if (!filteredBrands.length) return 0;
+
+    return Math.round(
+      filteredBrands.reduce((total, brand) => total + brand.sentiment, 0) /
+        filteredBrands.length
+    );
+  }, [filteredBrands]);
+
+  const ranking = useMemo(() => {
+    return filteredBrands
+      .map((brand) => ({
+        name: brand.name,
+        score: getMetricValue(brand, metric),
       }))
-    : filteredBrands
-        .map((brand) => ({
-          name: brand.name,
-          score: brand[metric],
-        }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 6);
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6);
+  }, [filteredBrands, metric]);
 
   const dashboardStats = [
     {
@@ -111,25 +150,19 @@ export default function DashboardClient() {
       description:
         brandMetrics?.source === "newsapi"
           ? "Noticias reales encontradas sobre marcas de moda."
-          : "Datos acumulados sobre marcas y tendencias.",
+          : "Datos de respaldo si la API no responde.",
     },
     {
       label: "Popularidad media",
       value: averagePopularity,
       suffix: "%",
-      description:
-        brandMetrics?.source === "newsapi"
-          ? "Índice calculado según presencia mediática."
-          : "Nivel medio de interés digital del segmento.",
+      description: "Índice calculado según presencia mediática.",
     },
     {
       label: "Sentimiento medio",
       value: averageSentiment,
       suffix: "%",
-      description:
-        brandMetrics?.source === "newsapi"
-          ? "Estimación basada en titulares y descripciones."
-          : "Percepción positiva media de las marcas analizadas.",
+      description: "Estimación basada en titulares y descripciones.",
     },
   ];
 
@@ -153,7 +186,7 @@ export default function DashboardClient() {
           </div>
 
           <div className="rounded-full border border-[#eadfd3] bg-[#fffdf9]/80 px-5 py-3 text-sm font-semibold text-[#7A2E3A]">
-            Última actualización: {brandMetrics?.updatedAt ?? "Abril 2026"}
+            Última actualización: {brandMetrics?.updatedAt ?? "Cargando..."}
           </div>
         </div>
       </Reveal>
@@ -170,6 +203,12 @@ export default function DashboardClient() {
       {isLoading && (
         <div className="mb-8 rounded-[28px] border border-[#eadfd3] bg-[#fffdf9] p-6 text-sm font-semibold text-[#7A2E3A]">
           Cargando métricas reales...
+        </div>
+      )}
+
+      {!isLoading && !brandMetrics && (
+        <div className="mb-8 rounded-[28px] border border-[#eadfd3] bg-[#fffdf9] p-6 text-sm font-semibold text-[#7A2E3A]">
+          No se pudieron cargar las métricas reales.
         </div>
       )}
 
@@ -196,7 +235,7 @@ export default function DashboardClient() {
           Fuente de datos:{" "}
           {brandMetrics.source === "newsapi"
             ? "NewsAPI, presencia en medios digitales."
-            : "Datos simulados de respaldo."}
+            : "Datos simulados de respaldo porque NewsAPI no respondió."}
         </p>
       )}
     </PageContainer>

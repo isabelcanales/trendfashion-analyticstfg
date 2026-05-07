@@ -52,12 +52,12 @@ export default function DashboardFilters({
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[430px]">
+        <div className="grid gap-5 sm:grid-cols-2 lg:min-w-[520px]">
           <Select
             value={category}
             onValueChange={(value) => onCategoryChange(value as CategoryFilter)}
           >
-            <SelectTrigger className="rounded-full border-[#eadfd3] bg-white">
+            <SelectTrigger className="!h-14 min-w-[200px] rounded-full border-[#eadfd3] bg-white px-6 text-base font-semibold text-[#171314] shadow-sm transition hover:border-[#d8c7b8] focus:ring-2 focus:ring-[#D8A7B1]/30 [&_span]:text-base [&_svg]:h-5 [&_svg]:w-5">
               <SelectValue placeholder="Tipo de marca" />
             </SelectTrigger>
 
@@ -73,7 +73,7 @@ export default function DashboardFilters({
             value={metric}
             onValueChange={(value) => onMetricChange(value as MetricType)}
           >
-            <SelectTrigger className="rounded-full border-[#eadfd3] bg-white">
+            <SelectTrigger className="!h-14 min-w-[200px] rounded-full border-[#eadfd3] bg-white px-6 text-base font-semibold text-[#171314] shadow-sm transition hover:border-[#d8c7b8] focus:ring-2 focus:ring-[#D8A7B1]/30 [&_span]:text-base [&_svg]:h-5 [&_svg]:w-5">
               <SelectValue placeholder="Métrica" />
             </SelectTrigger>
 

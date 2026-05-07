@@ -11,6 +11,7 @@ type Article = {
   content?: string;
   url: string;
   urlToImage: string;
+  slug?: string;
   source?: {
     name?: string;
   };
@@ -27,6 +28,33 @@ function formatDate(date?: string) {
   });
 }
 
+function createSlug(title: string) {
+  return title
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
+function findArticleByParam(articles: Article[], param: string) {
+  const numericId = Number(param);
+
+  if (!Number.isNaN(numericId)) {
+    return articles[numericId] ?? null;
+  }
+
+  return (
+    articles.find((article) => {
+      if (article.slug && article.slug === param) {
+        return true;
+      }
+
+      return createSlug(article.title) === param;
+    }) ?? null
+  );
+}
+
 function detectBrands(text: string) {
   const brands = ["zara", "gucci", "prada", "chanel", "dior", "mango"];
 
@@ -35,7 +63,7 @@ function detectBrands(text: string) {
 
 export default function NewsDetailPage() {
   const params = useParams();
-  const id = Number(params.id);
+  const id = String(params.id ?? "");
 
   const [article, setArticle] = useState<Article | null>(null);
   const [error, setError] = useState("");
@@ -47,7 +75,7 @@ export default function NewsDetailPage() {
 
         if (savedNews) {
           const articles = JSON.parse(savedNews) as Article[];
-          const selectedArticle = articles[id];
+          const selectedArticle = findArticleByParam(articles, id);
 
           if (selectedArticle) {
             setArticle(selectedArticle);
@@ -57,7 +85,7 @@ export default function NewsDetailPage() {
 
         const data = await getNews();
         const articles = data.articles || [];
-        const selectedArticle = articles[id];
+        const selectedArticle = findArticleByParam(articles, id);
 
         if (!selectedArticle) {
           setError("No se ha encontrado esta noticia.");

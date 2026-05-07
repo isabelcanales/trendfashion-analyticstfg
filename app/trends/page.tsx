@@ -1,3 +1,6 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import PageContainer from "@/components/layout/PageContainer";
 
 const trends = [
@@ -99,21 +102,15 @@ const trends = [
   },
 ];
 
-const topTrend = [...trends].sort((a, b) => b.popularity - a.popularity)[0];
+const statusLabels = [
+  "Todas",
+  "Emergente",
+  "En crecimiento",
+  "Consolidada",
+  "Estable",
+] as const;
 
-const averageGrowth = Math.round(
-  trends.reduce((total, trend) => total + trend.growth, 0) / trends.length
-);
-
-const averagePopularity = Math.round(
-  trends.reduce((total, trend) => total + trend.popularity, 0) / trends.length
-);
-
-const averageSentiment = Math.round(
-  trends.reduce((total, trend) => total + trend.sentiment, 0) / trends.length
-);
-
-const statusLabels = ["Todas", "Emergente", "En crecimiento", "Consolidada", "Estable"];
+type StatusFilter = (typeof statusLabels)[number];
 
 function getStatusStyles(status: string) {
   if (status === "Emergente") {
@@ -131,8 +128,69 @@ function getStatusStyles(status: string) {
   return "bg-[#fbf7f4] text-[#6d6260]";
 }
 
+function getTrendInsight(status: string) {
+  if (status === "Emergente") {
+    return "Alta capacidad de crecimiento y fuerte visibilidad en redes sociales.";
+  }
+
+  if (status === "En crecimiento") {
+    return "Tendencia en fase de expansión, con presencia creciente en marcas y contenidos.";
+  }
+
+  if (status === "Consolidada") {
+    return "Estética ya asentada, con presencia estable en comunicación editorial y consumo aspiracional.";
+  }
+
+  return "Tendencia estable, útil para construir armarios funcionales y propuestas atemporales.";
+}
+
 export default function TrendsPage() {
-  const sortedTrends = [...trends].sort((a, b) => b.growth - a.growth);
+  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>("Todas");
+
+  const filteredTrends = useMemo(() => {
+    if (selectedStatus === "Todas") {
+      return trends;
+    }
+
+    return trends.filter((trend) => trend.status === selectedStatus);
+  }, [selectedStatus]);
+
+  const sortedTrends = useMemo(() => {
+    return [...filteredTrends].sort((a, b) => b.growth - a.growth);
+  }, [filteredTrends]);
+
+  const globalSortedTrends = useMemo(() => {
+    return [...trends].sort((a, b) => b.growth - a.growth);
+  }, []);
+
+  const topTrend = globalSortedTrends[0];
+
+  const averageGrowth = useMemo(() => {
+    if (!filteredTrends.length) return 0;
+
+    return Math.round(
+      filteredTrends.reduce((total, trend) => total + trend.growth, 0) /
+        filteredTrends.length
+    );
+  }, [filteredTrends]);
+
+  const averagePopularity = useMemo(() => {
+    if (!filteredTrends.length) return 0;
+
+    return Math.round(
+      filteredTrends.reduce((total, trend) => total + trend.popularity, 0) /
+        filteredTrends.length
+    );
+  }, [filteredTrends]);
+
+  const averageSentiment = useMemo(() => {
+    if (!filteredTrends.length) return 0;
+
+    return Math.round(
+      filteredTrends.reduce((total, trend) => total + trend.sentiment, 0) /
+        filteredTrends.length
+    );
+  }, [filteredTrends]);
 
   return (
     <PageContainer>
@@ -149,8 +207,8 @@ export default function TrendsPage() {
             </h1>
 
             <p className="mt-6 max-w-2xl text-base leading-7 text-[#6d6260]">
-              Visualiza estilos, microtendencias y categorías con mayor crecimiento
-              dentro del comportamiento digital del sector moda.
+              Visualiza estilos, microtendencias y categorías con mayor
+              crecimiento dentro del comportamiento digital del sector moda.
             </p>
           </div>
 
@@ -163,13 +221,13 @@ export default function TrendsPage() {
         <div className="mb-12 grid gap-5 md:grid-cols-4">
           <article className="rounded-[24px] border border-[#eadbd4] bg-white p-6 shadow-sm">
             <p className="mb-3 text-sm font-semibold text-[#8a2638]">
-              Tendencias detectadas
+              Tendencias visibles
             </p>
             <h2 className="text-4xl font-bold text-[#151111]">
-              {trends.length}
+              {filteredTrends.length}
             </h2>
             <p className="mt-4 text-sm leading-6 text-[#6d6260]">
-              Estilos y categorías monitorizadas en el periodo.
+              Estilos mostrados según el estado seleccionado.
             </p>
           </article>
 
@@ -210,7 +268,7 @@ export default function TrendsPage() {
           </article>
         </div>
 
-        {/* FILTER VISUAL */}
+        {/* FILTER */}
         <div className="mb-10 rounded-[28px] border border-[#eadbd4] bg-white p-6 shadow-sm">
           <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -224,16 +282,18 @@ export default function TrendsPage() {
 
             <div className="flex flex-wrap gap-2">
               {statusLabels.map((status) => (
-                <span
+                <button
                   key={status}
-                  className={`rounded-full px-4 py-2 text-xs font-semibold ${
-                    status === "Todas"
+                  type="button"
+                  onClick={() => setSelectedStatus(status)}
+                  className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
+                    selectedStatus === status
                       ? "bg-[#151111] text-white"
-                      : "bg-[#f7ece8] text-[#8a2638]"
+                      : "bg-[#f7ece8] text-[#8a2638] hover:bg-[#eadbd4]"
                   }`}
                 >
                   {status}
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -245,180 +305,237 @@ export default function TrendsPage() {
           </p>
         </div>
 
-        {/* MAIN CONTENT */}
-        <div className="grid gap-8 lg:grid-cols-[1.4fr_0.9fr]">
-          {/* TREND CARDS */}
-          <div>
-            <div className="mb-6">
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-[#8a2638]">
-                Ranking de crecimiento
+        {/* FEATURED TREND */}
+        <section className="mb-10 overflow-hidden rounded-[36px] border border-[#eadbd4] bg-[#fffdf9] shadow-[0_24px_70px_rgba(60,35,30,0.08)]">
+          <div className="grid gap-0 lg:grid-cols-[0.85fr_1.15fr]">
+            <div className="flex min-h-[360px] flex-col justify-between bg-[#151111] p-8 text-white md:p-10">
+              <div>
+                <p className="mb-4 text-xs font-bold uppercase tracking-[0.35em] text-[#e5a9b6]">
+                  Tendencia líder
+                </p>
+
+                <h2 className="font-serif text-5xl font-bold leading-none md:text-6xl">
+                  {topTrend.name}
+                </h2>
+
+                <p className="mt-5 max-w-md text-sm leading-7 text-white/65">
+                  {topTrend.description}
+                </p>
+              </div>
+
+              <div className="mt-10 flex flex-wrap gap-2">
+                <span
+                  className={`rounded-full px-4 py-2 text-xs font-bold ${getStatusStyles(
+                    topTrend.status
+                  )}`}
+                >
+                  {topTrend.status}
+                </span>
+
+                {topTrend.brands.map((brand) => (
+                  <span
+                    key={brand}
+                    className="rounded-full bg-white/10 px-4 py-2 text-xs font-semibold text-white/80"
+                  >
+                    {brand}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-5 p-8 md:grid-cols-3 md:p-10">
+              <article className="rounded-[28px] bg-[#fbf7f4] p-6">
+                <p className="mb-4 text-sm font-semibold text-[#8a2638]">
+                  Crecimiento
+                </p>
+                <h3 className="text-5xl font-bold text-[#151111]">
+                  +{topTrend.growth}%
+                </h3>
+                <p className="mt-4 text-sm leading-6 text-[#6d6260]">
+                  Es la tendencia con mayor incremento del radar actual.
+                </p>
+              </article>
+
+              <article className="rounded-[28px] bg-[#fbf7f4] p-6">
+                <p className="mb-4 text-sm font-semibold text-[#8a2638]">
+                  Popularidad
+                </p>
+                <h3 className="text-5xl font-bold text-[#151111]">
+                  {topTrend.popularity}%
+                </h3>
+                <p className="mt-4 text-sm leading-6 text-[#6d6260]">
+                  Alta presencia en conversación digital y referencias de marca.
+                </p>
+              </article>
+
+              <article className="rounded-[28px] bg-[#fbf7f4] p-6">
+                <p className="mb-4 text-sm font-semibold text-[#8a2638]">
+                  Sentimiento
+                </p>
+                <h3 className="text-5xl font-bold text-[#151111]">
+                  {topTrend.sentiment}%
+                </h3>
+                <p className="mt-4 text-sm leading-6 text-[#6d6260]">
+                  Percepción positiva vinculada a estética, calidad y deseo.
+                </p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        {/* RADAR */}
+        <section className="mb-10 rounded-[36px] bg-[#151111] p-8 text-white shadow-xl md:p-10">
+          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-[0.35em] text-[#e5a9b6]">
+                Radar actual
               </p>
-              <h2 className="font-serif text-3xl font-bold text-[#151111]">
-                Tendencias monitorizadas
+
+              <h2 className="font-serif text-4xl font-bold">
+                Mapa de crecimiento digital
               </h2>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-2">
-              {sortedTrends.map((trend, index) => (
-                <article
-                  key={trend.id}
-                  className="group rounded-[28px] border border-[#eadbd4] bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
-                >
-                  <div className="mb-6 flex items-start justify-between gap-4">
-                    <div>
-                      <span className="mb-4 inline-flex rounded-full bg-[#f7ece8] px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#8a2638]">
-                        #{index + 1} · {trend.category}
-                      </span>
-
-                      <h3 className="font-serif text-3xl font-bold text-[#151111]">
-                        {trend.name}
-                      </h3>
-                    </div>
-
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#151111] text-lg font-bold text-white">
-                      +{trend.growth}
-                    </div>
-                  </div>
-
-                  <p className="mb-6 text-sm leading-6 text-[#6d6260]">
-                    {trend.description}
-                  </p>
-
-                  <div className="mb-6 flex flex-wrap gap-2">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-bold ${getStatusStyles(
-                        trend.status
-                      )}`}
-                    >
-                      {trend.status}
-                    </span>
-
-                    {trend.brands.slice(0, 3).map((brand) => (
-                      <span
-                        key={brand}
-                        className="rounded-full bg-[#fbf7f4] px-3 py-1 text-xs font-semibold text-[#6d6260]"
-                      >
-                        {brand}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="mb-6 grid grid-cols-3 gap-3">
-                    <div className="rounded-2xl bg-[#fbf7f4] p-4">
-                      <p className="text-xs font-semibold text-[#8a2638]">
-                        Crecimiento
-                      </p>
-                      <p className="mt-2 text-lg font-bold text-[#151111]">
-                        +{trend.growth}%
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-[#fbf7f4] p-4">
-                      <p className="text-xs font-semibold text-[#8a2638]">
-                        Popularidad
-                      </p>
-                      <p className="mt-2 text-lg font-bold text-[#151111]">
-                        {trend.popularity}%
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl bg-[#fbf7f4] p-4">
-                      <p className="text-xs font-semibold text-[#8a2638]">
-                        Sentimiento
-                      </p>
-                      <p className="mt-2 text-lg font-bold text-[#151111]">
-                        {trend.sentiment}%
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-[#6d6260]">
-                        <span>Popularidad</span>
-                        <span>{trend.popularity}%</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-[#f0e3de]">
-                        <div
-                          className="h-full rounded-full bg-[#151111]"
-                          style={{ width: `${trend.popularity}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-[#6d6260]">
-                        <span>Sentimiento</span>
-                        <span>{trend.sentiment}%</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-[#f0e3de]">
-                        <div
-                          className="h-full rounded-full bg-[#8a2638]"
-                          style={{ width: `${trend.sentiment}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
+            <p className="max-w-md text-sm leading-6 text-white/60">
+              Comparativa de crecimiento entre las tendencias monitorizadas en
+              el periodo actual.
+            </p>
           </div>
 
-          {/* SIDE PANEL */}
-          <aside className="h-fit rounded-[32px] bg-[#151111] p-7 text-white shadow-xl lg:sticky lg:top-28">
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.25em] text-[#d9a7b0]">
-              Radar actual
-            </p>
+          <div className="space-y-5">
+            {globalSortedTrends.map((trend, index) => (
+              <div
+                key={trend.id}
+                className="grid gap-3 md:grid-cols-[220px_1fr_70px]"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold">
+                    {index + 1}
+                  </span>
 
-            <h2 className="mb-8 font-serif text-3xl font-bold">
-              Tendencias con mayor crecimiento
-            </h2>
-
-            <div className="space-y-6">
-              {sortedTrends.slice(0, 6).map((trend, index) => (
-                <div key={trend.id}>
-                  <div className="mb-3 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold">
-                        {index + 1}
-                      </span>
-
-                      <div>
-                        <p className="font-bold">{trend.name}</p>
-                        <p className="text-xs text-white/50">
-                          {trend.status}
-                        </p>
-                      </div>
-                    </div>
-
-                    <span className="text-sm font-bold">
-                      +{trend.growth}%
-                    </span>
+                  <div>
+                    <p className="font-bold">{trend.name}</p>
+                    <p className="text-xs text-white/45">{trend.status}</p>
                   </div>
+                </div>
 
-                  <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                <div className="flex items-center">
+                  <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
                     <div
                       className="h-full rounded-full bg-[#e5a9b6]"
                       style={{ width: `${trend.growth * 2}%` }}
                     />
                   </div>
                 </div>
-              ))}
-            </div>
 
-            <div className="mt-8 rounded-[24px] border border-white/10 bg-white/5 p-5">
-              <p className="mb-2 text-sm font-bold text-[#e5a9b6]">
-                Lectura rápida
-              </p>
+                <p className="text-right text-sm font-bold">
+                  +{trend.growth}%
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-              <p className="text-sm leading-6 text-white/70">
-                Las tendencias vinculadas al lujo discreto y a la estética
-                romántica muestran el mayor crecimiento digital del periodo,
-                especialmente en redes sociales y contenido editorial.
-              </p>
-            </div>
-          </aside>
-        </div>
+        {/* TREND GRID */}
+        <section>
+          <div className="mb-6">
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-[#8a2638]">
+              Análisis editorial
+            </p>
+
+            <h2 className="font-serif text-3xl font-bold text-[#151111]">
+              {selectedStatus === "Todas"
+                ? "Tendencias monitorizadas"
+                : `Tendencias en estado ${selectedStatus}`}
+            </h2>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {sortedTrends.map((trend, index) => (
+              <article
+                key={trend.id}
+                className="group flex min-h-[360px] flex-col rounded-[30px] border border-[#eadbd4] bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+              >
+                <div className="mb-5 flex items-start justify-between gap-4">
+                  <span className="inline-flex rounded-full bg-[#f7ece8] px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#8a2638]">
+                    #{index + 1} · {trend.category}
+                  </span>
+
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#151111] text-sm font-bold text-white">
+                    +{trend.growth}
+                  </span>
+                </div>
+
+                <h3 className="font-serif text-3xl font-bold leading-tight text-[#151111]">
+                  {trend.name}
+                </h3>
+
+                <p className="mt-4 text-sm leading-6 text-[#6d6260]">
+                  {trend.description}
+                </p>
+
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-bold ${getStatusStyles(
+                      trend.status
+                    )}`}
+                  >
+                    {trend.status}
+                  </span>
+
+                  {trend.brands.slice(0, 2).map((brand) => (
+                    <span
+                      key={brand}
+                      className="rounded-full bg-[#fbf7f4] px-3 py-1 text-xs font-semibold text-[#6d6260]"
+                    >
+                      {brand}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-auto pt-8">
+                  <div className="mb-4 grid grid-cols-3 gap-2">
+                    <div className="rounded-2xl bg-[#fbf7f4] p-3">
+                      <p className="text-[11px] font-semibold text-[#8a2638]">
+                        Growth
+                      </p>
+                      <p className="mt-1 font-bold text-[#151111]">
+                        +{trend.growth}%
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-[#fbf7f4] p-3">
+                      <p className="text-[11px] font-semibold text-[#8a2638]">
+                        Pop.
+                      </p>
+                      <p className="mt-1 font-bold text-[#151111]">
+                        {trend.popularity}%
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl bg-[#fbf7f4] p-3">
+                      <p className="text-[11px] font-semibold text-[#8a2638]">
+                        Sent.
+                      </p>
+                      <p className="mt-1 font-bold text-[#151111]">
+                        {trend.sentiment}%
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-[#f0e3de] bg-[#fffdf9] p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#8a2638]">
+                      Insight
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-[#6d6260]">
+                      {getTrendInsight(trend.status)}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       </section>
     </PageContainer>
   );

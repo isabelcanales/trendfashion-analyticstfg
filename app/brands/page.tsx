@@ -1,27 +1,33 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import PageContainer from "@/components/layout/PageContainer";
-import { fashionBrands } from "@/data/fashionData";
+import { getBrandMetrics } from "@/lib/brandMetrics";
+import { BrandMetricsResponse } from "@/types/brandMetrics";
 
-const totalMentions = fashionBrands.reduce(
-  (total, brand) => total + brand.mentions,
-  0
-);
+const categoryLabels = ["Todas", "Luxury", "Premium", "Fast Fashion"] as const;
 
-const averagePopularity = Math.round(
-  fashionBrands.reduce((total, brand) => total + brand.popularity, 0) /
-    fashionBrands.length
-);
+type CategoryLabel = (typeof categoryLabels)[number];
 
-const averageSentiment = Math.round(
-  fashionBrands.reduce((total, brand) => total + brand.sentiment, 0) /
-    fashionBrands.length
-);
-
-const topBrand = [...fashionBrands].sort((a, b) => b.score - a.score)[0];
-
-const categoryLabels = ["Todas", "Luxury", "Premium", "Fast Fashion"];
+const brandCountries: Record<string, string> = {
+  Gucci: "Italia",
+  Prada: "Italia",
+  Chanel: "Francia",
+  Dior: "Francia",
+  Zara: "España",
+  Mango: "España",
+  "H&M": "Suecia",
+  COS: "Reino Unido",
+  "Massimo Dutti": "España",
+};
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("es-ES").format(value);
+}
+
+function getBrandId(brand: string) {
+  return brand.toLowerCase().replaceAll("&", "and").replaceAll(" ", "-");
 }
 
 function getCategoryDescription(category: string) {
@@ -47,7 +53,116 @@ function getSentimentText(sentiment: number) {
 }
 
 export default function BrandsPage() {
-  const sortedBrands = [...fashionBrands].sort((a, b) => b.score - a.score);
+  const [data, setData] = useState<BrandMetricsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] =
+    useState<CategoryLabel>("Todas");
+
+  useEffect(() => {
+    async function loadMetrics() {
+      try {
+        const result = await getBrandMetrics();
+        setData(result);
+      } catch (error) {
+        console.error("Error cargando métricas reales:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadMetrics();
+  }, []);
+
+  const brands = useMemo(() => {
+    if (!data) return [];
+
+    const maxMentions = data.ranking[0]?.mentions || 1;
+
+    return data.ranking.map((brand) => {
+      const popularity = Math.round((brand.mentions / maxMentions) * 100);
+      const sentiment = data.averageSentiment;
+      const score = Math.round((popularity + sentiment) / 2);
+
+      return {
+        id: getBrandId(brand.brand),
+        name: brand.brand,
+        category: brand.category,
+        country: brandCountries[brand.brand] ?? "Global",
+        mentions: brand.mentions,
+        popularity,
+        sentiment,
+        score,
+      };
+    });
+  }, [data]);
+
+  const filteredBrands = useMemo(() => {
+    if (selectedCategory === "Todas") {
+      return brands;
+    }
+
+    return brands.filter((brand) => brand.category === selectedCategory);
+  }, [brands, selectedCategory]);
+
+  const sortedBrands = useMemo(() => {
+    return [...filteredBrands].sort((a, b) => b.mentions - a.mentions);
+  }, [filteredBrands]);
+
+  const globalSortedBrands = useMemo(() => {
+    return [...brands].sort((a, b) => b.mentions - a.mentions);
+  }, [brands]);
+
+  const totalMentions = useMemo(() => {
+    return filteredBrands.reduce((total, brand) => total + brand.mentions, 0);
+  }, [filteredBrands]);
+
+  const averagePopularity = useMemo(() => {
+    if (!filteredBrands.length) return 0;
+
+    return Math.round(
+      filteredBrands.reduce((total, brand) => total + brand.popularity, 0) /
+        filteredBrands.length
+    );
+  }, [filteredBrands]);
+
+  const averageSentiment = useMemo(() => {
+    if (!filteredBrands.length) return 0;
+
+    return Math.round(
+      filteredBrands.reduce((total, brand) => total + brand.sentiment, 0) /
+        filteredBrands.length
+    );
+  }, [filteredBrands]);
+
+  const topBrand = globalSortedBrands[0];
+
+  if (loading) {
+    return (
+      <PageContainer>
+        <section className="pb-20 pt-12">
+          <div className="rounded-[28px] border border-[#eadbd4] bg-white p-8 shadow-sm">
+            <p className="text-sm font-semibold text-[#8a2638]">
+              Cargando datos reales de marcas...
+            </p>
+          </div>
+        </section>
+      </PageContainer>
+    );
+  }
+
+  if (!data || !brands.length) {
+    return (
+      <PageContainer>
+        <section className="pb-20 pt-12">
+          <div className="rounded-[28px] border border-[#eadbd4] bg-white p-8 shadow-sm">
+            <p className="text-sm font-semibold text-[#8a2638]">
+              No se pudieron cargar los datos de marcas.
+            </p>
+          </div>
+        </section>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>
@@ -65,7 +180,14 @@ export default function BrandsPage() {
 
             <p className="mt-6 max-w-2xl text-base leading-7 text-[#6d6260]">
               Consulta el rendimiento de marcas luxury, premium y fast fashion a
-              partir de menciones, popularidad, sentimiento y puntuación global.
+              partir de menciones reales, popularidad estimada y sentimiento
+              calculado desde titulares y descripciones.
+            </p>
+
+            <p className="mt-4 text-xs font-medium text-[#8a2638]/80">
+              {data.source === "newsapi"
+                ? `Datos reales obtenidos de NewsAPI · Actualizado en ${data.updatedAt}`
+                : "Modo demostración: no se pudo conectar con NewsAPI"}
             </p>
           </div>
 
@@ -78,13 +200,13 @@ export default function BrandsPage() {
         <div className="mb-12 grid gap-5 md:grid-cols-4">
           <article className="rounded-[24px] border border-[#eadbd4] bg-white p-6 shadow-sm">
             <p className="mb-3 text-sm font-semibold text-[#8a2638]">
-              Marcas analizadas
+              Marcas visibles
             </p>
             <h2 className="text-4xl font-bold text-[#151111]">
-              {fashionBrands.length}
+              {filteredBrands.length}
             </h2>
             <p className="mt-4 text-sm leading-6 text-[#6d6260]">
-              Conjunto de marcas monitorizadas en el panel.
+              Marcas mostradas según el segmento seleccionado.
             </p>
           </article>
 
@@ -96,7 +218,7 @@ export default function BrandsPage() {
               {formatNumber(totalMentions)}+
             </h2>
             <p className="mt-4 text-sm leading-6 text-[#6d6260]">
-              Volumen acumulado de conversación digital.
+              Volumen acumulado del segmento seleccionado.
             </p>
           </article>
 
@@ -108,7 +230,7 @@ export default function BrandsPage() {
               {averagePopularity}%
             </h2>
             <p className="mt-4 text-sm leading-6 text-[#6d6260]">
-              Nivel medio de interés generado por las marcas.
+              Índice calculado según presencia mediática.
             </p>
           </article>
 
@@ -120,7 +242,7 @@ export default function BrandsPage() {
               {averageSentiment}%
             </h2>
             <p className="mt-4 text-sm leading-6 text-[#6d6260]">
-              Percepción positiva media del ecosistema analizado.
+              Estimación basada en titulares y descripciones.
             </p>
           </article>
         </div>
@@ -139,16 +261,18 @@ export default function BrandsPage() {
 
             <div className="flex flex-wrap gap-2">
               {categoryLabels.map((category) => (
-                <span
+                <button
                   key={category}
-                  className={`rounded-full px-4 py-2 text-xs font-semibold ${
-                    category === "Todas"
+                  type="button"
+                  onClick={() => setSelectedCategory(category)}
+                  className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
+                    selectedCategory === category
                       ? "bg-[#151111] text-white"
-                      : "bg-[#f7ece8] text-[#8a2638]"
+                      : "bg-[#f7ece8] text-[#8a2638] hover:bg-[#eadbd4]"
                   }`}
                 >
                   {category}
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -170,16 +294,19 @@ export default function BrandsPage() {
                   Ranking completo
                 </p>
                 <h2 className="font-serif text-3xl font-bold text-[#151111]">
-                  Marcas monitorizadas
+                  {selectedCategory === "Todas"
+                    ? "Marcas monitorizadas"
+                    : `Marcas ${selectedCategory}`}
                 </h2>
               </div>
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
               {sortedBrands.map((brand, index) => (
-                <article
+                <Link
                   key={brand.id}
-                  className="group rounded-[28px] border border-[#eadbd4] bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
+                  href={`/brands/${brand.id}`}
+                  className="group block rounded-[28px] border border-[#eadbd4] bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md"
                 >
                   <div className="mb-6 flex items-start justify-between gap-4">
                     <div>
@@ -187,7 +314,7 @@ export default function BrandsPage() {
                         #{index + 1} · {brand.category}
                       </span>
 
-                      <h3 className="font-serif text-3xl font-bold text-[#151111]">
+                      <h3 className="font-serif text-3xl font-bold text-[#151111] transition group-hover:text-[#8a2638]">
                         {brand.name}
                       </h3>
 
@@ -196,7 +323,7 @@ export default function BrandsPage() {
                       </p>
                     </div>
 
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#151111] text-lg font-bold text-white">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#151111] text-lg font-bold text-white transition group-hover:scale-105">
                       {brand.score}
                     </div>
                   </div>
@@ -261,7 +388,13 @@ export default function BrandsPage() {
                       </div>
                     </div>
                   </div>
-                </article>
+
+                  <div className="mt-6 border-t border-[#f0e3de] pt-4">
+                    <span className="text-xs font-bold uppercase tracking-[0.22em] text-[#8a2638]">
+                      Ver detalle de marca →
+                    </span>
+                  </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -278,7 +411,11 @@ export default function BrandsPage() {
 
             <div className="space-y-6">
               {sortedBrands.slice(0, 6).map((brand, index) => (
-                <div key={brand.id}>
+                <Link
+                  key={brand.id}
+                  href={`/brands/${brand.id}`}
+                  className="block rounded-2xl p-2 transition hover:bg-white/5"
+                >
                   <div className="mb-3 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold">
@@ -293,9 +430,7 @@ export default function BrandsPage() {
                       </div>
                     </div>
 
-                    <span className="text-sm font-bold">
-                      {brand.score}
-                    </span>
+                    <span className="text-sm font-bold">{brand.score}</span>
                   </div>
 
                   <div className="h-2 overflow-hidden rounded-full bg-white/10">
@@ -304,7 +439,7 @@ export default function BrandsPage() {
                       style={{ width: `${brand.score}%` }}
                     />
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
 
@@ -314,9 +449,9 @@ export default function BrandsPage() {
               </p>
 
               <p className="text-sm leading-6 text-white/70">
-                Las marcas luxury lideran en sentimiento y puntuación global,
-                mientras que las marcas fast fashion concentran mayor volumen de
-                menciones.
+                El ranking se ordena por menciones reales obtenidas desde la
+                API. La popularidad se calcula en relación con la marca con más
+                presencia mediática.
               </p>
             </div>
           </aside>

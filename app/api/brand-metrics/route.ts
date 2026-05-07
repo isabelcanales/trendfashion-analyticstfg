@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+type BrandCategory = "Luxury" | "Fast Fashion" | "Premium";
+
 type NewsApiArticle = {
   title?: string;
   description?: string;
@@ -13,19 +15,26 @@ type NewsApiResponse = {
   message?: string;
 };
 
-const brands = [
-  "Zara",
-  "Chanel",
-  "Gucci",
-  "Dior",
-  "Prada",
-  "Mango",
-  "H&M",
-  "Massimo Dutti",
-  "COS",
+type BrandConfig = {
+  name: string;
+  category: BrandCategory;
+};
+
+const brands: BrandConfig[] = [
+  { name: "Zara", category: "Fast Fashion" },
+  { name: "Chanel", category: "Luxury" },
+  { name: "Gucci", category: "Luxury" },
+  { name: "Dior", category: "Luxury" },
+  { name: "Prada", category: "Luxury" },
+  { name: "Mango", category: "Fast Fashion" },
+  { name: "H&M", category: "Fast Fashion" },
+  { name: "Massimo Dutti", category: "Premium" },
+  { name: "COS", category: "Premium" },
 ];
 
 const months = ["Ene", "Feb", "Mar", "Abr"];
+
+const progression = [0.62, 0.74, 0.86, 1];
 
 function getCurrentMonthLabel() {
   const value = new Intl.DateTimeFormat("es-ES", {
@@ -36,69 +45,56 @@ function getCurrentMonthLabel() {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+/**
+ * Fallback coherente.
+ * Importante:
+ * - Usa las mismas marcas que la API real.
+ * - No mete números desproporcionados.
+ * - Si Prada está por encima de Chanel en "Todas", también lo estará en "Luxury",
+ *   porque el filtro solo debe ocultar marcas, no cambiar datos.
+ */
+const fallbackRanking = [
+  { brand: "Prada", mentions: 880, category: "Luxury" },
+  { brand: "Chanel", mentions: 371, category: "Luxury" },
+  { brand: "Dior", mentions: 368, category: "Luxury" },
+  { brand: "Gucci", mentions: 237, category: "Luxury" },
+  { brand: "Zara", mentions: 106, category: "Fast Fashion" },
+  { brand: "Mango", mentions: 42, category: "Fast Fashion" },
+  { brand: "H&M", mentions: 35, category: "Fast Fashion" },
+  { brand: "Massimo Dutti", mentions: 31, category: "Premium" },
+  { brand: "COS", mentions: 18, category: "Premium" },
+];
+
+const fallbackTotalMentions = fallbackRanking.reduce(
+  (total, item) => total + item.mentions,
+  0
+);
+
+const fallbackMaxMentions = fallbackRanking[0]?.mentions || 1;
+
+const fallbackAveragePopularity = Math.round(
+  fallbackRanking.reduce((total, item) => {
+    return total + (item.mentions / fallbackMaxMentions) * 100;
+  }, 0) / fallbackRanking.length
+);
+
+const fallbackChartData = months.map((month, monthIndex) => {
+  const row: Record<string, string | number> = { month };
+
+  fallbackRanking.forEach((item) => {
+    row[item.brand] = Math.round(item.mentions * progression[monthIndex]);
+  });
+
+  return row;
+});
+
 const fallbackData = {
   updatedAt: getCurrentMonthLabel(),
-  totalMentions: 163800,
-  averagePopularity: 80,
+  totalMentions: fallbackTotalMentions,
+  averagePopularity: fallbackAveragePopularity,
   averageSentiment: 76,
-  ranking: [
-    { brand: "Zara", mentions: 22100 },
-    { brand: "Chanel", mentions: 20100 },
-    { brand: "Gucci", mentions: 18400 },
-    { brand: "Dior", mentions: 17600 },
-    { brand: "H&M", mentions: 15800 },
-    { brand: "Prada", mentions: 14200 },
-  ],
-  chartData: [
-    {
-      month: "Ene",
-      Zara: 16000,
-      Chanel: 15000,
-      Gucci: 12000,
-      Mango: 9000,
-      "Massimo Dutti": 5200,
-      Prada: 10000,
-      COS: 5000,
-      Dior: 11800,
-      "H&M": 8200,
-    },
-    {
-      month: "Feb",
-      Zara: 18000,
-      Chanel: 16800,
-      Gucci: 13200,
-      Mango: 9600,
-      "Massimo Dutti": 6500,
-      Prada: 11200,
-      COS: 6100,
-      Dior: 13500,
-      "H&M": 10400,
-    },
-    {
-      month: "Mar",
-      Zara: 20200,
-      Chanel: 18700,
-      Gucci: 14800,
-      Mango: 10800,
-      "Massimo Dutti": 7200,
-      Prada: 12800,
-      COS: 6900,
-      Dior: 15200,
-      "H&M": 13100,
-    },
-    {
-      month: "Abr",
-      Zara: 22100,
-      Chanel: 20100,
-      Gucci: 18400,
-      Mango: 12600,
-      "Massimo Dutti": 8300,
-      Prada: 14200,
-      COS: 7900,
-      Dior: 17600,
-      "H&M": 15800,
-    },
-  ],
+  ranking: fallbackRanking,
+  chartData: fallbackChartData,
   source: "fallback",
 };
 
@@ -153,14 +149,14 @@ function calculateSentiment(articles: NewsApiArticle[]) {
   return Math.max(45, Math.min(95, score));
 }
 
-async function fetchBrandNews(brand: string) {
+async function fetchBrandNews(brand: BrandConfig) {
   const apiKey = process.env.NEWS_API_KEY;
 
   if (!apiKey) {
     throw new Error("Missing NEWS_API_KEY");
   }
 
-  const query = encodeURIComponent(`"${brand}" fashion`);
+  const query = encodeURIComponent(`"${brand.name}" fashion`);
   const url = `https://newsapi.org/v2/everything?q=${query}&language=en&sortBy=publishedAt&pageSize=25&apiKey=${apiKey}`;
 
   const response = await fetch(url, {
@@ -168,13 +164,14 @@ async function fetchBrandNews(brand: string) {
   });
 
   if (!response.ok) {
-    throw new Error(`NewsAPI error for ${brand}: ${response.status}`);
+    throw new Error(`NewsAPI error for ${brand.name}: ${response.status}`);
   }
 
   const data = (await response.json()) as NewsApiResponse;
 
   return {
-    brand,
+    brand: brand.name,
+    category: brand.category,
     totalResults: data.totalResults ?? 0,
     articles: data.articles ?? [],
   };
@@ -198,6 +195,7 @@ export async function GET() {
       .map((item) => ({
         brand: item.brand,
         mentions: item.totalResults,
+        category: item.category,
       }))
       .sort((a, b) => b.mentions - a.mentions);
 
@@ -219,15 +217,10 @@ export async function GET() {
 
     const chartData = months.map((month, monthIndex) => {
       const row: Record<string, string | number> = { month };
-      const progression = [0.62, 0.74, 0.86, 1];
 
-      ranking.slice(0, 6).forEach((rankedBrand) => {
-        const brandResult = successfulResults.find(
-          (item) => item.brand === rankedBrand.brand
-        );
-
+      ranking.forEach((rankedBrand) => {
         row[rankedBrand.brand] = Math.round(
-          (brandResult?.totalResults ?? 0) * progression[monthIndex]
+          rankedBrand.mentions * progression[monthIndex]
         );
       });
 
@@ -239,7 +232,7 @@ export async function GET() {
       totalMentions,
       averagePopularity,
       averageSentiment,
-      ranking: ranking.slice(0, 6),
+      ranking,
       chartData,
       source: "newsapi",
     });
