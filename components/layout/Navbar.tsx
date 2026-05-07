@@ -5,7 +5,6 @@ import TransitionLink from "@/components/animations/TransitionLink";
 
 const navItems = [
   { label: "Inicio", href: "/" },
-  { label: "Dashboard", href: "/dashboard" },
   { label: "Noticias", href: "/news" },
   { label: "Marcas", href: "/brands" },
   { label: "Tendencias", href: "/trends" },

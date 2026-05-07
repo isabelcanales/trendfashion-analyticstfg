@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageContainer from "@/components/layout/PageContainer";
 import TrendChart from "@/components/dashboard/TrendChart";
 import BrandRankingTable from "@/components/dashboard/BrandRankingTable";
@@ -12,9 +12,50 @@ import { BrandCategory, MetricType } from "@/types/fashion";
 
 type CategoryFilter = BrandCategory | "Todas";
 
+type BrandMetricsResponse = {
+  updatedAt: string;
+  totalMentions: number;
+  averagePopularity: number;
+  averageSentiment: number;
+  ranking: {
+    brand: string;
+    mentions: number;
+  }[];
+  chartData: Record<string, string | number>[];
+  source: "newsapi" | "fallback";
+};
+
 export default function DashboardClient() {
   const [category, setCategory] = useState<CategoryFilter>("Todas");
   const [metric, setMetric] = useState<MetricType>("mentions");
+  const [brandMetrics, setBrandMetrics] = useState<BrandMetricsResponse | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadBrandMetrics() {
+      try {
+        const response = await fetch("/api/brand-metrics");
+
+        if (!response.ok) {
+          throw new Error("Error al cargar métricas");
+        }
+
+        const data = (await response.json()) as BrandMetricsResponse;
+        setBrandMetrics(data);
+      } catch (error) {
+        console.error("Error loading brand metrics:", error);
+        setBrandMetrics(null);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadBrandMetrics();
+  }, []);
+
+  const shouldUseApiData = category === "Todas" && brandMetrics !== null;
 
   const filteredBrands = useMemo(() => {
     if (category === "Todas") return fashionBrands;
@@ -22,51 +63,73 @@ export default function DashboardClient() {
   }, [category]);
 
   const filteredTrendData = useMemo(() => {
+    if (shouldUseApiData) {
+      return brandMetrics.chartData;
+    }
+
     if (category === "Todas") return fashionTrendData;
+
     return fashionTrendData.filter((item) => item.category === category);
-  }, [category]);
+  }, [category, shouldUseApiData, brandMetrics]);
 
-  const totalMentions = filteredBrands.reduce(
-    (total, brand) => total + brand.mentions,
-    0
-  );
+  const totalMentions = shouldUseApiData
+    ? brandMetrics.totalMentions
+    : filteredBrands.reduce((total, brand) => total + brand.mentions, 0);
 
-  const averagePopularity = Math.round(
-    filteredBrands.reduce((total, brand) => total + brand.popularity, 0) /
-      filteredBrands.length
-  );
+  const averagePopularity = shouldUseApiData
+    ? brandMetrics.averagePopularity
+    : Math.round(
+        filteredBrands.reduce((total, brand) => total + brand.popularity, 0) /
+          filteredBrands.length
+      );
 
-  const averageSentiment = Math.round(
-    filteredBrands.reduce((total, brand) => total + brand.sentiment, 0) /
-      filteredBrands.length
-  );
+  const averageSentiment = shouldUseApiData
+    ? brandMetrics.averageSentiment
+    : Math.round(
+        filteredBrands.reduce((total, brand) => total + brand.sentiment, 0) /
+          filteredBrands.length
+      );
 
-  const ranking = filteredBrands
-    .map((brand) => ({
-      name: brand.name,
-      score: brand[metric],
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6);
+  const ranking = shouldUseApiData
+    ? brandMetrics.ranking.map((brand) => ({
+        name: brand.brand,
+        score: brand.mentions,
+      }))
+    : filteredBrands
+        .map((brand) => ({
+          name: brand.name,
+          score: brand[metric],
+        }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 6);
 
   const dashboardStats = [
     {
       label: "Menciones totales",
       value: totalMentions,
       suffix: "+",
-      description: "Datos acumulados sobre marcas y tendencias.",
+      description:
+        brandMetrics?.source === "newsapi"
+          ? "Noticias reales encontradas sobre marcas de moda."
+          : "Datos acumulados sobre marcas y tendencias.",
     },
     {
       label: "Popularidad media",
       value: averagePopularity,
       suffix: "%",
-      description: "Nivel medio de interés digital del segmento.",
+      description:
+        brandMetrics?.source === "newsapi"
+          ? "Índice calculado según presencia mediática."
+          : "Nivel medio de interés digital del segmento.",
     },
     {
       label: "Sentimiento medio",
       value: averageSentiment,
       suffix: "%",
-      description: "Percepción positiva media de las marcas analizadas.",
+      description:
+        brandMetrics?.source === "newsapi"
+          ? "Estimación basada en titulares y descripciones."
+          : "Percepción positiva media de las marcas analizadas.",
     },
   ];
 
@@ -90,7 +153,7 @@ export default function DashboardClient() {
           </div>
 
           <div className="rounded-full border border-[#eadfd3] bg-[#fffdf9]/80 px-5 py-3 text-sm font-semibold text-[#7A2E3A]">
-            Última actualización: Abril 2026
+            Última actualización: {brandMetrics?.updatedAt ?? "Abril 2026"}
           </div>
         </div>
       </Reveal>
@@ -103,6 +166,12 @@ export default function DashboardClient() {
           onMetricChange={setMetric}
         />
       </Reveal>
+
+      {isLoading && (
+        <div className="mb-8 rounded-[28px] border border-[#eadfd3] bg-[#fffdf9] p-6 text-sm font-semibold text-[#7A2E3A]">
+          Cargando métricas reales...
+        </div>
+      )}
 
       <div className="mb-8 grid gap-5 md:grid-cols-3">
         {dashboardStats.map((stat, index) => (
@@ -121,6 +190,15 @@ export default function DashboardClient() {
           <BrandRankingTable data={ranking} />
         </Reveal>
       </div>
+
+      {brandMetrics && (
+        <p className="mt-6 text-xs font-medium text-[#8a7a75]">
+          Fuente de datos:{" "}
+          {brandMetrics.source === "newsapi"
+            ? "NewsAPI, presencia en medios digitales."
+            : "Datos simulados de respaldo."}
+        </p>
+      )}
     </PageContainer>
   );
 }

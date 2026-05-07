@@ -12,12 +12,22 @@ import {
 } from "recharts";
 import { FashionTrendPoint, MetricType } from "@/types/fashion";
 
+type ApiTrendPoint = Record<string, string | number>;
+
 type TrendChartProps = {
-  data: FashionTrendPoint[];
+  data: FashionTrendPoint[] | ApiTrendPoint[];
   metric: MetricType;
 };
 
-const colors = ["#7A2E3A", "#D8A7B1", "#C8A96A", "#171314", "#9C6B73"];
+const colors = [
+  "#7A2E3A",
+  "#D8A7B1",
+  "#C8A96A",
+  "#171314",
+  "#9C6B73",
+  "#E5A9B6",
+  "#A96B79",
+];
 
 const metricLabels = {
   mentions: "Menciones",
@@ -25,24 +35,40 @@ const metricLabels = {
   sentiment: "Sentimiento",
 };
 
+function isApiChartData(data: FashionTrendPoint[] | ApiTrendPoint[]) {
+  return data.length > 0 && !("brand" in data[0]);
+}
+
 export default function TrendChart({ data, metric }: TrendChartProps) {
-  const brands = Array.from(new Set(data.map((item) => item.brand)));
+  const apiMode = isApiChartData(data);
 
-  const chartData = Array.from(new Set(data.map((item) => item.month))).map(
-    (month) => {
-      const point: Record<string, string | number> = { month };
+  const chartData = apiMode
+    ? (data as ApiTrendPoint[])
+    : Array.from(
+        new Set((data as FashionTrendPoint[]).map((item) => item.month))
+      ).map((month) => {
+        const point: Record<string, string | number> = { month };
 
-      brands.forEach((brand) => {
-        const brandPoint = data.find(
-          (item) => item.month === month && item.brand === brand
+        const brands = Array.from(
+          new Set((data as FashionTrendPoint[]).map((item) => item.brand))
         );
 
-        point[brand] = brandPoint ? brandPoint[metric] : 0;
+        brands.forEach((brand) => {
+          const brandPoint = (data as FashionTrendPoint[]).find(
+            (item) => item.month === month && item.brand === brand
+          );
+
+          point[brand] = brandPoint ? brandPoint[metric] : 0;
+        });
+
+        return point;
       });
 
-      return point;
-    }
-  );
+  const brands = apiMode
+    ? Object.keys(chartData[0] ?? {}).filter((key) => key !== "month")
+    : Array.from(
+        new Set((data as FashionTrendPoint[]).map((item) => item.brand))
+      );
 
   return (
     <section className="rounded-[2rem] border border-[#eadfd3] bg-[#fffdf9]/85 p-6 shadow-xl shadow-[#7A2E3A]/5 backdrop-blur">
@@ -64,7 +90,10 @@ export default function TrendChart({ data, metric }: TrendChartProps) {
 
       <div className="h-[360px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData}>
+          <LineChart
+            data={chartData}
+            margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+          >
             <CartesianGrid stroke="#eadfd3" strokeDasharray="4 4" />
             <XAxis dataKey="month" stroke="#6b625f" />
             <YAxis stroke="#6b625f" />
