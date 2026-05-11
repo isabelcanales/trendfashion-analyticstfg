@@ -145,6 +145,14 @@ const excludedKeywords = [
   "futbol",
   "deporte",
   "deportes",
+  "automotriz",
+  "automóvil",
+  "automovil",
+  "coches",
+  "vehículos",
+  "vehiculos",
+  "despedir",
+  "despidos",
 ];
 
 function createSlug(title: string) {
@@ -156,6 +164,24 @@ function createSlug(title: string) {
     .replace(/(^-|-$)+/g, "");
 }
 
+function getFromDate(period: string) {
+  const date = new Date();
+
+  if (period === "1m") {
+    date.setMonth(date.getMonth() - 1);
+  } else if (period === "3m") {
+    date.setMonth(date.getMonth() - 3);
+  } else if (period === "6m") {
+    date.setMonth(date.getMonth() - 6);
+  } else if (period === "12m") {
+    date.setFullYear(date.getFullYear() - 1);
+  } else {
+    date.setMonth(date.getMonth() - 6);
+  }
+
+  return date.toISOString().split("T")[0];
+}
+
 function getArticleText(article: NewsApiArticle) {
   return `${article.title ?? ""} ${article.description ?? ""} ${
     article.content ?? ""
@@ -165,15 +191,15 @@ function getArticleText(article: NewsApiArticle) {
 function isClearlyNotFashionArticle(article: NewsApiArticle) {
   const text = getArticleText(article);
 
-  return excludedKeywords.some((keyword) => text.includes(keyword.toLowerCase()));
+  return excludedKeywords.some((keyword) =>
+    text.includes(keyword.toLowerCase())
+  );
 }
 
 function isFashionArticle(article: NewsApiArticle) {
   const text = getArticleText(article);
 
-  return fashionKeywords.some((keyword) =>
-    text.includes(keyword.toLowerCase())
-  );
+  return fashionKeywords.some((keyword) => text.includes(keyword.toLowerCase()));
 }
 
 function normalizeArticle(article: NewsApiArticle, index: number) {
@@ -226,8 +252,12 @@ function getCleanArticles(articles: NewsApiArticle[]) {
   return fallbackArticles.map(normalizeArticle);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const apiKey = process.env.NEWS_API_KEY;
+  const { searchParams } = new URL(request.url);
+  const period = searchParams.get("period") ?? "6m";
+  const brand = searchParams.get("brand");
+  const fromDate = getFromDate(period);
 
   if (!apiKey) {
     const articles = fallbackArticles.map(normalizeArticle);
@@ -236,6 +266,9 @@ export async function GET() {
       status: "fallback",
       source: "fallback",
       reason: "Falta NEWS_API_KEY en .env.local",
+      period,
+      brand: brand || null,
+      from: fromDate,
       totalResults: articles.length,
       articles,
     });
@@ -244,15 +277,25 @@ export async function GET() {
   try {
     const url = new URL("https://newsapi.org/v2/everything");
 
-    url.searchParams.set(
-      "q",
-      '(moda OR fashion OR tendencias OR pasarela OR lujo OR luxury OR streetwear OR Zara OR Mango OR Gucci OR Prada OR Chanel OR Dior)'
-    );
+    // Si existe brand, hacer búsqueda específica por marca
+    if (brand) {
+      url.searchParams.set(
+        "q",
+        `"${brand}" AND (moda OR fashion OR lujo OR luxury OR pasarela OR colección OR tendencias OR estilo)`
+      );
+    } else {
+      // Si no, búsqueda general de moda
+      url.searchParams.set(
+        "q",
+        '(moda OR fashion OR tendencias OR pasarela OR lujo OR luxury OR streetwear OR Zara OR Mango OR Gucci OR Prada OR Chanel OR Dior)'
+      );
+    }
 
     url.searchParams.set("searchIn", "title,description");
     url.searchParams.set("language", "es");
     url.searchParams.set("sortBy", "publishedAt");
-    url.searchParams.set("pageSize", "30");
+    url.searchParams.set("pageSize", "50");
+    url.searchParams.set("from", fromDate);
     url.searchParams.set(
       "excludeDomains",
       "tmz.com,thesun.co.uk,dailymail.co.uk"
@@ -271,18 +314,23 @@ export async function GET() {
         source: "fallback",
         reason: "NewsAPI no respondió correctamente",
         statusCode: response.status,
+        period,
+        brand: brand || null,
+        from: fromDate,
         totalResults: fallback.length,
         articles: fallback,
       });
     }
 
     const data = (await response.json()) as NewsApiResponse;
-
     const cleanArticles = getCleanArticles(data.articles ?? []);
 
     return NextResponse.json({
       status: cleanArticles.length ? "ok" : "fallback",
       source: cleanArticles.length ? "newsapi" : "fallback",
+      period,
+      brand: brand || null,
+      from: fromDate,
       totalResults: cleanArticles.length,
       articles: cleanArticles,
     });
@@ -295,6 +343,9 @@ export async function GET() {
       status: "fallback",
       source: "fallback",
       reason: "Error interno del servidor",
+      period,
+      brand: brand || null,
+      from: fromDate,
       totalResults: fallback.length,
       articles: fallback,
     });
