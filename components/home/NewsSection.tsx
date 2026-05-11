@@ -8,13 +8,23 @@ type Article = {
   title: string;
   description: string;
   url: string;
-  urlToImage: string;
+  urlToImage?: string;
   slug?: string;
   source?: {
     name?: string;
   };
   publishedAt?: string;
 };
+
+const FALLBACK_IMAGES = [
+  "/images/news-fallback.jpg",
+  "/images/news-fallback-1.jpg",
+  "/images/news-fallback-2.jpg",
+];
+
+function getFallbackImage(index: number) {
+  return FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
+}
 
 function createSlug(title: string) {
   return title
@@ -76,8 +86,7 @@ export default function NewsSection() {
           (article: Article) =>
             article.title &&
             article.description &&
-            article.url &&
-            article.urlToImage
+            article.url
         );
 
         setArticles(validArticles.slice(0, 10));
@@ -128,9 +137,13 @@ export default function NewsSection() {
             >
               <div className="relative min-h-[340px] overflow-hidden">
                 <img
-                  src={featuredArticle.urlToImage}
+                  src={featuredArticle.urlToImage || getFallbackImage(0)}
                   alt={featuredArticle.title}
                   className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = getFallbackImage(0);
+                  }}
                 />
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
@@ -176,53 +189,61 @@ export default function NewsSection() {
           )}
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 2xl:grid-cols-3">
-            {secondaryArticles.map((article, index) => (
-              <TransitionLink
-                key={`${article.url}-${index}`}
-                href={getArticleHref(article)}
-                onClick={saveArticles}
-                className="group overflow-hidden rounded-[28px] border border-[#eadbd4] bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
-              >
-                <div className="relative aspect-[16/9] overflow-hidden">
-                  <img
-                    src={article.urlToImage}
-                    alt={article.title}
-                    className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                  />
+            {secondaryArticles.map((article, index) => {
+              const fallbackImage = getFallbackImage(index + 1);
 
-                  <div className="absolute left-5 top-5 rounded-full bg-white/90 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#8a2638] backdrop-blur">
-                    {getTag(article)}
-                  </div>
-                </div>
+              return (
+                <TransitionLink
+                  key={`${article.url}-${index}`}
+                  href={getArticleHref(article)}
+                  onClick={saveArticles}
+                  className="group overflow-hidden rounded-[28px] border border-[#eadbd4] bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+                >
+                  <div className="relative aspect-[16/9] overflow-hidden">
+                    <img
+                      src={article.urlToImage || fallbackImage}
+                      alt={article.title}
+                      className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = fallbackImage;
+                      }}
+                    />
 
-                <div className="flex min-h-[230px] flex-col justify-between p-7">
-                  <div>
-                    <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8a2638]">
-                      {article.source?.name || "Fashion Source"} ·{" "}
-                      {formatDate(article.publishedAt)}
-                    </p>
-
-                    <h3 className="line-clamp-2 font-serif text-2xl font-bold leading-snug text-[#151111]">
-                      {article.title}
-                    </h3>
-
-                    <p className="mt-4 line-clamp-2 text-sm leading-6 text-[#6d6260]">
-                      {article.description}
-                    </p>
+                    <div className="absolute left-5 top-5 rounded-full bg-white/90 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#8a2638] backdrop-blur">
+                      {getTag(article)}
+                    </div>
                   </div>
 
-                  <div className="mt-6 flex items-center justify-between border-t border-[#f0e3de] pt-5">
-                    <span className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8a2638]">
-                      Ver artículo completo
-                    </span>
+                  <div className="flex min-h-[230px] flex-col justify-between p-7">
+                    <div>
+                      <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8a2638]">
+                        {article.source?.name || "Fashion Source"} ·{" "}
+                        {formatDate(article.publishedAt)}
+                      </p>
 
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#151111] text-sm text-white transition group-hover:translate-x-1">
-                      →
-                    </span>
+                      <h3 className="line-clamp-2 font-serif text-2xl font-bold leading-snug text-[#151111]">
+                        {article.title}
+                      </h3>
+
+                      <p className="mt-4 line-clamp-2 text-sm leading-6 text-[#6d6260]">
+                        {article.description}
+                      </p>
+                    </div>
+
+                    <div className="mt-6 flex items-center justify-between border-t border-[#f0e3de] pt-5">
+                      <span className="text-xs font-semibold uppercase tracking-[0.22em] text-[#8a2638]">
+                        Ver artículo completo
+                      </span>
+
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#151111] text-sm text-white transition group-hover:translate-x-1">
+                        →
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </TransitionLink>
-            ))}
+                </TransitionLink>
+              );
+            })}
           </div>
         </>
       )}

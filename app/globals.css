@@ -12,8 +12,16 @@ body {
   cursor: none;
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgba(216, 167, 177, 0.25), transparent 32rem),
-    radial-gradient(circle at top right, rgba(200, 169, 106, 0.18), transparent 28rem),
+    radial-gradient(
+      circle at top left,
+      rgba(216, 167, 177, 0.25),
+      transparent 32rem
+    ),
+    radial-gradient(
+      circle at top right,
+      rgba(200, 169, 106, 0.18),
+      transparent 28rem
+    ),
     var(--background);
 }
 
@@ -141,10 +149,19 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
   }
 }
+
+/* =========================
+   Radar animations
+========================= */
+
+
+

@@ -20,14 +20,23 @@ type NewsArticle = {
   };
 };
 
+const FALLBACK_IMAGES = [
+  "/images/news-fallback.jpg",
+  "/images/news-fallback-1.jpg",
+  "/images/news-fallback-2.jpg",
+];
+
+function getFallbackImage(index: number) {
+  return FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
+}
+
 const fallbackFeaturedNews = {
   title: "Noticia destacada del sector moda",
   description:
     "Consulta las últimas noticias del sector moda, marcas destacadas y tendencias digitales.",
   date: "Actualidad",
   href: "/news",
-  image:
-    "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1600&auto=format&fit=crop",
+  image: getFallbackImage(0),
 };
 
 function createSlug(title: string) {
@@ -68,7 +77,7 @@ function getFeaturedImage(article: NewsArticle) {
     article.imageUrl ||
     article.urlToImage ||
     article.image ||
-    fallbackFeaturedNews.image
+    getFallbackImage(0)
   );
 }
 
@@ -204,9 +213,13 @@ export default function HomePage() {
         <article className="grid overflow-hidden rounded-[2rem] border border-[#eaded4] bg-[#fffdf9] shadow-[0_24px_70px_rgba(60,35,30,0.08)] md:grid-cols-[0.9fr_1.1fr]">
           <div className="relative min-h-[260px] overflow-hidden bg-[#f5ebe8] md:min-h-[360px]">
             <img
-              src={featuredNews.image}
+              src={featuredNews.image || getFallbackImage(0)}
               alt={featuredNews.title}
               className="h-full w-full object-cover transition duration-500 hover:scale-105"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = getFallbackImage(0);
+              }}
             />
           </div>
 

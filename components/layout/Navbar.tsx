@@ -51,10 +51,10 @@ export default function Navbar() {
         </div>
 
         <TransitionLink
-          href="/dashboard"
+          href="/radar"
           className="rounded-full bg-[#171314] px-5 py-2 text-sm font-semibold text-[#FFFDF9] shadow-sm transition hover:bg-[#7A2E3A]"
         >
-          Ver datos
+          Radar de moda
         </TransitionLink>
       </nav>
     </header>

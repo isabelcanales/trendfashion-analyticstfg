@@ -10,13 +10,31 @@ type Article = {
   description: string;
   content?: string;
   url: string;
-  urlToImage: string;
+  urlToImage?: string;
   slug?: string;
   source?: {
     name?: string;
   };
   publishedAt?: string;
 };
+
+const FALLBACK_IMAGES = [
+  "/images/news-fallback.jpg",
+  "/images/news-fallback-1.jpg",
+  "/images/news-fallback-2.jpg",
+];
+
+function getFallbackImage(article: Article) {
+  const text = article.title || article.url || "article";
+
+  let hash = 0;
+
+  for (let i = 0; i < text.length; i++) {
+    hash = text.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  return FALLBACK_IMAGES[Math.abs(hash) % FALLBACK_IMAGES.length];
+}
 
 function formatDate(date?: string) {
   if (!date) return "Actualidad";
@@ -134,6 +152,7 @@ export default function NewsDetailPage() {
   }`.toLowerCase();
 
   const brands = detectBrands(fullText);
+  const fallbackImage = getFallbackImage(article);
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-16">
@@ -144,15 +163,17 @@ export default function NewsDetailPage() {
         ← Volver a noticias
       </TransitionLink>
 
-      {article.urlToImage && (
-        <div className="mb-10 overflow-hidden rounded-[30px]">
-          <img
-            src={article.urlToImage}
-            alt={article.title}
-            className="h-[420px] w-full object-cover"
-          />
-        </div>
-      )}
+      <div className="mb-10 overflow-hidden rounded-[30px] border border-[#eadbd4] bg-white shadow-sm">
+        <img
+          src={article.urlToImage || fallbackImage}
+          alt={article.title}
+          className="h-[420px] w-full object-cover"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = fallbackImage;
+          }}
+        />
+      </div>
 
       <p className="mb-4 text-xs uppercase tracking-[0.2em] text-[#8a2638]">
         {article.source?.name || "Fashion Source"} ·{" "}
