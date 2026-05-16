@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import PageContainer from "@/components/layout/PageContainer";
+import AIForecastModal from "@/components/AIForecastModal";
+import { useAIForecastModal } from "@/hooks/useAIForecastModal";
 import { getBrandMetrics } from "@/lib/brandMetrics";
+import { useReports } from "@/context/ReportsContext";
 import { BrandMetricsResponse } from "@/types/brandMetrics";
 import { motion } from "motion/react";
 
@@ -28,6 +32,53 @@ type ComparableBrand = {
   sentiment: number;
   score: number;
 };
+
+function GenerateReportButton({
+  brandA,
+  brandB,
+}: {
+  brandA: ComparableBrand;
+  brandB: ComparableBrand;
+}) {
+  const router = useRouter();
+  const { addReport } = useReports();
+
+  const handleGenerateReport = () => {
+    const slug = `${brandA.id}-vs-${brandB.id}`;
+    
+    // Generar insight principal
+    const mainInsight =
+      brandA.score > brandB.score
+        ? `${brandA.name} lidera con un score de ${brandA.score} vs ${brandB.score}. Diferencia de ${Math.abs(brandA.mentions - brandB.mentions).toLocaleString("es-ES")} menciones.`
+        : `${brandB.name} lidera con un score de ${brandB.score} vs ${brandA.score}. Diferencia de ${Math.abs(brandA.mentions - brandB.mentions).toLocaleString("es-ES")} menciones.`;
+
+    // Crear informe
+    addReport({
+      slug,
+      brandA: brandA.name,
+      brandB: brandB.name,
+      scoreA: brandA.score,
+      scoreB: brandB.score,
+      sentimentA: brandA.sentiment,
+      sentimentB: brandB.sentiment,
+      mentionsA: brandA.mentions,
+      mentionsB: brandB.mentions,
+      mainInsight,
+    });
+
+    // Redirigir a /reports
+    router.push("/reports");
+  };
+
+  return (
+    <button
+      onClick={handleGenerateReport}
+      className="h-12 rounded-[14px] border-2 border-[#8a2638] bg-[#8a2638] px-6 text-sm font-bold uppercase tracking-[0.1em] text-white transition hover:bg-[#a83450] hover:border-[#a83450] active:scale-95"
+    >
+      Generar informe
+    </button>
+  );
+}
 
 function getBrandId(brand: string) {
   return brand.toLowerCase().replaceAll("&", "and").replaceAll(" ", "-");
@@ -270,6 +321,9 @@ export default function ComparisonPage() {
   const [loading, setLoading] = useState(true);
   const [brandAId, setBrandAId] = useState("zara");
   const [brandBId, setBrandBId] = useState("mango");
+  const [mainMetric, setMainMetric] = useState("score");
+  
+  const forecastModal = useAIForecastModal();
 
   useEffect(() => {
     async function loadMetrics() {
@@ -447,456 +501,402 @@ export default function ComparisonPage() {
           </article>
         </div>
 
-        {/* SELECTORS */}
-        <div className="mb-10 rounded-[30px] border border-[#eadbd4] bg-white p-6 shadow-sm">
-          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-[#8a2638]">
-                Selector de marcas
-              </p>
+        {/* BRAND SELECTOR - MINIMALIST */}
+        <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:gap-6 lg:gap-8">
+          {/* Marca A */}
+          <div className="flex flex-col md:flex-1">
+            <label className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-[#8a2638]">
+              Marca A
+            </label>
+            <select
+              value={brandA.id}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                if (nextValue === brandB.id) {
+                  const alternative = brands.find(
+                    (brand) => brand.id !== nextValue
+                  );
+                  if (alternative) {
+                    setBrandBId(alternative.id);
+                  }
+                }
+                setBrandAId(nextValue);
+              }}
+              className="h-12 w-full rounded-[14px] border border-[#eadbd4] bg-[#fffdf9] px-5 text-sm font-semibold text-[#151111] outline-none transition focus:border-[#8a2638] focus:ring-2 focus:ring-[#8a2638]/20"
+            >
+              {brands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-              <h2 className="font-serif text-3xl font-bold text-[#151111]">
-                Elige las marcas a comparar
-              </h2>
+          {/* Swap Button */}
+          <button
+            onClick={() => {
+              const temp = brandAId;
+              setBrandAId(brandBId);
+              setBrandBId(temp);
+            }}
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-[#eadbd4] bg-white text-[#8a2638] transition hover:bg-[#f9f6f3] active:scale-95 md:mb-0"
+            title="Intercambiar marcas"
+          >
+            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6.99 11L3 15h3v4h2v-4h3l-4.01-4zm.02-4h2V3h-3v4h3l3.99-4v4h2V3h-2l-4.01 4z" />
+            </svg>
+          </button>
 
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6d6260]">
-                Cambia cualquiera de los dos desplegables para actualizar la
-                comparativa automáticamente.
+          {/* Marca B */}
+          <div className="flex flex-col md:flex-1">
+            <label className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-[#8a2638]">
+              Marca B
+            </label>
+            <select
+              value={brandB.id}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                if (nextValue === brandA.id) {
+                  const alternative = brands.find(
+                    (brand) => brand.id !== nextValue
+                  );
+                  if (alternative) {
+                    setBrandAId(alternative.id);
+                  }
+                }
+                setBrandBId(nextValue);
+              }}
+              className="h-12 w-full rounded-[14px] border border-[#eadbd4] bg-[#fffdf9] px-5 text-sm font-semibold text-[#151111] outline-none transition focus:border-[#8a2638] focus:ring-2 focus:ring-[#8a2638]/20"
+            >
+              {brands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Main Metric Selector */}
+          <div className="flex flex-col">
+            <label className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-[#8a2638]">
+              Métrica principal
+            </label>
+            <select
+              value={mainMetric}
+              onChange={(event) => setMainMetric(event.target.value)}
+              className="h-12 rounded-[14px] border border-[#eadbd4] bg-[#fffdf9] px-4 text-sm font-semibold text-[#151111] outline-none transition focus:border-[#8a2638] focus:ring-2 focus:ring-[#8a2638]/20"
+            >
+              <option value="score">Score Global</option>
+              <option value="popularity">Popularidad</option>
+              <option value="sentiment">Sentimiento</option>
+              <option value="mentions">Menciones</option>
+            </select>
+          </div>
+
+          {/* Generate Report Button */}
+          <div className="flex flex-col">
+            <label className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-transparent">
+              Acción
+            </label>
+            <div className="flex gap-3">
+              <GenerateReportButton brandA={brandA} brandB={brandB} />
+              <button
+                onClick={() => forecastModal.open(brandA.name, "popularity")}
+                className="h-12 flex-1 rounded-[14px] border-2 border-[#8a2638]/30 bg-white px-4 text-sm font-bold uppercase tracking-[0.1em] text-[#8a2638] transition hover:border-[#8a2638] hover:bg-[#8a2638]/5 active:scale-95"
+              >
+                ✨ Forecast IA
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* HERO COMPARISON - COMPACT */}
+        <div className="mb-12 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#151111] via-[#2a1f1c] to-[#151111] p-8 shadow-lg md:p-10">
+          {/* Background accents */}
+          <div className="absolute inset-0 -right-20 -top-20 h-60 w-60 rounded-full bg-[#8a2638]/10 blur-3xl" />
+          <div className="absolute inset-0 -bottom-20 -left-10 h-40 w-40 rounded-full bg-[#e5a9b6]/5 blur-2xl" />
+          
+          <div className="relative z-10">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-[0.35em] text-[#e5a9b6]">
+                Comparativa de análisis
               </p>
+              <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-[#e5a9b6]">
+                {mainMetric === "score" && "Por Score Global"}
+                {mainMetric === "popularity" && "Por Popularidad"}
+                {mainMetric === "sentiment" && "Por Sentimiento"}
+                {mainMetric === "mentions" && "Por Menciones"}
+              </span>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[520px]">
-              <div>
-                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-[#8a2638]">
-                  Marca A
-                </label>
+            {/* Title */}
+            <div className="mb-6">
+              <h2 className="font-serif text-4xl font-bold leading-tight text-white md:text-5xl">
+                {brandA.name}
+                <span className="text-[#e5a9b6]"> vs </span>
+                {brandB.name}
+              </h2>
+            </div>
 
-                <select
-                  value={brandA.id}
-                  onChange={(event) => {
-                    const nextValue = event.target.value;
+            {/* Subtitle & Quick Metrics */}
+            <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+              <p className="text-sm leading-6 text-white/70">
+                {getDynamicInsight(brandA, brandB)}
+              </p>
 
-                    if (nextValue === brandB.id) {
-                      const alternative = brands.find(
-                        (brand) => brand.id !== nextValue
-                      );
-
-                      if (alternative) {
-                        setBrandBId(alternative.id);
-                      }
-                    }
-
-                    setBrandAId(nextValue);
-                  }}
-                  className="h-14 w-full rounded-full border border-[#eadbd4] bg-[#fffdf9] px-5 text-sm font-semibold text-[#151111] outline-none transition focus:border-[#8a2638]"
-                >
-                  {brands.map((brand) => (
-                    <option key={brand.id} value={brand.id}>
-                      {brand.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-[#8a2638]">
-                  Marca B
-                </label>
-
-                <select
-                  value={brandB.id}
-                  onChange={(event) => {
-                    const nextValue = event.target.value;
-
-                    if (nextValue === brandA.id) {
-                      const alternative = brands.find(
-                        (brand) => brand.id !== nextValue
-                      );
-
-                      if (alternative) {
-                        setBrandAId(alternative.id);
-                      }
-                    }
-
-                    setBrandBId(nextValue);
-                  }}
-                  className="h-14 w-full rounded-full border border-[#eadbd4] bg-[#fffdf9] px-5 text-sm font-semibold text-[#151111] outline-none transition focus:border-[#8a2638]"
-                >
-                  {brands.map((brand) => (
-                    <option key={brand.id} value={brand.id}>
-                      {brand.name}
-                    </option>
-                  ))}
-                </select>
+              {/* Main Metric Card */}
+              <div className="rounded-[16px] border border-white/10 bg-white/5 px-5 py-4 backdrop-blur-sm">
+                <p className="text-xs font-semibold text-[#e5a9b6]">
+                  {mainMetric === "score" && "Score Global"}
+                  {mainMetric === "popularity" && "Popularidad"}
+                  {mainMetric === "sentiment" && "Sentimiento"}
+                  {mainMetric === "mentions" && "Menciones"}
+                </p>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-white">
+                    {mainMetric === "score" && brandA.score}
+                    {mainMetric === "popularity" && `${brandA.popularity}%`}
+                    {mainMetric === "sentiment" && `${brandA.sentiment}%`}
+                    {mainMetric === "mentions" && formatNumber(brandA.mentions)}
+                  </span>
+                  <span className="text-xs text-white/50">vs</span>
+                  <span className="text-2xl font-bold text-[#8a2638]">
+                    {mainMetric === "score" && brandB.score}
+                    {mainMetric === "popularity" && `${brandB.popularity}%`}
+                    {mainMetric === "sentiment" && `${brandB.sentiment}%`}
+                    {mainMetric === "mentions" && formatNumber(brandB.mentions)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* MAIN COMPARISON CARD */}
-        <article className="overflow-hidden rounded-[36px] border border-[#eadbd4] bg-[#fffdfb] shadow-[0_24px_70px_rgba(60,35,30,0.08)]">
-          <div className="grid gap-0 lg:grid-cols-[0.9fr_1.1fr]">
-            {/* LEFT PANEL */}
-            <div className="bg-[#151111] p-8 text-white md:p-10">
-              <p className="mb-4 text-xs font-bold uppercase tracking-[0.35em] text-[#e5a9b6]">
-                Comparativa activa
-              </p>
+        {/* METRICS GRID - 4 CARDS */}
+        <div className="mb-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <ComparisonBar
+            label="Menciones"
+            valueA={brandA.mentions}
+            valueB={brandB.mentions}
+            brandA={brandA.name}
+            brandB={brandB.name}
+          />
 
-              <h2 className="font-serif text-5xl font-bold leading-tight md:text-6xl">
-                {brandA.name} vs {brandB.name}
-              </h2>
+          <ComparisonBar
+            label="Popularidad"
+            valueA={brandA.popularity}
+            valueB={brandB.popularity}
+            brandA={brandA.name}
+            brandB={brandB.name}
+            suffix="%"
+          />
 
-              <p className="mt-6 text-sm leading-7 text-white/65">
-                {getDynamicInsight(brandA, brandB)}
-              </p>
+          <ComparisonBar
+            label="Sentimiento"
+            valueA={brandA.sentiment}
+            valueB={brandB.sentiment}
+            brandA={brandA.name}
+            brandB={brandB.name}
+            suffix="%"
+          />
 
-              {/* BADGES SECTION */}
-              <div className="mt-8">
-                <p className="mb-3 text-xs font-bold uppercase tracking-[0.25em] text-[#e5a9b6]">
-                  Insights principales
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {getComparativeBadges(brandA, brandB).map((badge, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex rounded-full bg-[#8a2638] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-white"
-                    >
-                      {badge.winner}: {badge.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
+          <ComparisonBar
+            label="Score global"
+            valueA={brandA.score}
+            valueB={brandB.score}
+            brandA={brandA.name}
+            brandB={brandB.name}
+          />
+        </div>
 
-              <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                {[brandA, brandB].map((brand) => (
-                  <div
-                    key={brand.id}
-                    className="rounded-[26px] border border-white/10 bg-white/5 p-5"
-                  >
-                    <span className="mb-4 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#e5a9b6]">
-                      {brand.category}
-                    </span>
+        {/* DETAILED ANALYSIS - TWO COLUMNS */}
+        <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr]">
+          {/* LEFT: Detailed Analysis */}
+          <div className="rounded-[24px] border border-[#eadbd4] bg-white p-6 shadow-sm md:p-8">
+            <h3 className="mb-6 text-lg font-bold text-[#151111]">Análisis Comparativo</h3>
 
-                    <h3 className="font-serif text-3xl font-bold">
-                      {brand.name}
-                    </h3>
+            <div className="space-y-6">
+              {[
+                {
+                  label: "Menciones",
+                  valueA: brandA.mentions,
+                  valueB: brandB.mentions,
+                  maxValue: 5000,
+                  format: (v: number) => formatNumber(v)
+                },
+                {
+                  label: "Popularidad",
+                  valueA: brandA.popularity,
+                  valueB: brandB.popularity,
+                  maxValue: 100,
+                  format: (v: number) => `${v}%`
+                },
+                {
+                  label: "Sentimiento",
+                  valueA: brandA.sentiment,
+                  valueB: brandB.sentiment,
+                  maxValue: 100,
+                  format: (v: number) => `${v}%`
+                },
+                {
+                  label: "Score Global",
+                  valueA: brandA.score,
+                  valueB: brandB.score,
+                  maxValue: 100,
+                  format: (v: number) => v.toString()
+                }
+              ].map((metric) => {
+                const maxVal = Math.max(metric.valueA, metric.valueB, metric.maxValue);
+                const percentA = (metric.valueA / maxVal) * 100;
+                const percentB = (metric.valueB / maxVal) * 100;
+                const winner = getWinner(metric.valueA, metric.valueB, brandA.name, brandB.name);
 
-                    <p className="mt-2 text-sm text-white/50">
-                      {brand.country}
-                    </p>
+                return (
+                  <div key={metric.label} className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-[#151111]">{metric.label}</p>
+                      <p className="text-xs font-semibold text-[#8a2638]">
+                        Lidera: <span className="font-bold">{winner}</span>
+                      </p>
+                    </div>
 
-                    <p className="mt-5 text-sm leading-6 text-white/65">
-                      {getCategoryDescription(brand.category)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-
-            </div>
-
-            {/* RIGHT PANEL */}
-            <div className="p-8 md:p-10">
-              <div className="mb-8 grid gap-5 md:grid-cols-2">
-                {[brandA, brandB].map((brand) => (
-                  <div
-                    key={brand.id}
-                    className="rounded-[28px] border border-[#eadbd4] bg-white p-6 shadow-sm"
-                  >
-                    <div className="mb-5 flex items-start justify-between gap-4">
+                    <div className="space-y-3">
                       <div>
-                        <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#8a2638]">
-                          {brand.category}
-                        </p>
-
-                        <h3 className="font-serif text-3xl font-bold text-[#151111]">
-                          {brand.name}
-                        </h3>
-
-                        <p className="mt-2 text-sm text-[#6d6260]">
-                          {brand.country}
-                        </p>
-                      </div>
-
-                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#151111] text-lg font-bold text-white">
-                        {brand.score}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl bg-[#fbf7f4] p-4">
-                        <p className="text-xs font-semibold text-[#8a2638]">
-                          Menciones
-                        </p>
-                        <p className="mt-2 text-xl font-bold text-[#151111]">
-                          {formatNumber(brand.mentions)}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl bg-[#fbf7f4] p-4">
-                        <p className="text-xs font-semibold text-[#8a2638]">
-                          Popularidad
-                        </p>
-                        <p className="mt-2 text-xl font-bold text-[#151111]">
-                          {brand.popularity}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* MÉTRICAS DE COMPARACIÓN */}
-              <div className="mt-10 grid gap-5 md:grid-cols-2">
-                <ComparisonBar
-                  label="Menciones"
-                  valueA={brandA.mentions}
-                  valueB={brandB.mentions}
-                  brandA={brandA.name}
-                  brandB={brandB.name}
-                />
-
-                <ComparisonBar
-                  label="Popularidad"
-                  valueA={brandA.popularity}
-                  valueB={brandB.popularity}
-                  brandA={brandA.name}
-                  brandB={brandB.name}
-                  suffix="%"
-                />
-
-                <ComparisonBar
-                  label="Sentimiento"
-                  valueA={brandA.sentiment}
-                  valueB={brandB.sentiment}
-                  brandA={brandA.name}
-                  brandB={brandB.name}
-                  suffix="%"
-                />
-
-                <ComparisonBar
-                  label="Score global"
-                  valueA={brandA.score}
-                  valueB={brandB.score}
-                  brandA={brandA.name}
-                  brandB={brandB.name}
-                />
-              </div>
-
-              {/* ANÁLISIS COMPARATIVO DETALLADO */}
-              <div className="mt-10 rounded-[24px] border border-[#eadbd4] bg-white p-8 shadow-sm">
-                <h3 className="mb-6 text-lg font-bold text-[#151111]">Análisis Comparativo Detallado</h3>
-                
-                <div className="space-y-6">
-                  {[
-                    {
-                      label: "Menciones",
-                      valueA: brandA.mentions,
-                      valueB: brandB.mentions,
-                      maxValue: 5000,
-                      format: (v: number) => formatNumber(v)
-                    },
-                    {
-                      label: "Popularidad",
-                      valueA: brandA.popularity,
-                      valueB: brandB.popularity,
-                      maxValue: 100,
-                      format: (v: number) => `${v}%`
-                    },
-                    {
-                      label: "Sentimiento",
-                      valueA: brandA.sentiment,
-                      valueB: brandB.sentiment,
-                      maxValue: 100,
-                      format: (v: number) => `${v}%`
-                    },
-                    {
-                      label: "Score Global",
-                      valueA: brandA.score,
-                      valueB: brandB.score,
-                      maxValue: 100,
-                      format: (v: number) => v.toString()
-                    }
-                  ].map((metric) => {
-                    const maxVal = Math.max(metric.valueA, metric.valueB, metric.maxValue);
-                    const percentA = (metric.valueA / maxVal) * 100;
-                    const percentB = (metric.valueB / maxVal) * 100;
-                    const winner = getWinner(metric.valueA, metric.valueB, brandA.name, brandB.name);
-
-                    return (
-                      <div key={metric.label} className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-bold uppercase tracking-[0.08em] text-[#151111]">
-                            {metric.label}
-                          </p>
-                          <p className="text-xs font-semibold text-[#8a2638]">
-                            Ganador: <span className="font-bold">{winner}</span>
-                          </p>
+                        <div className="mb-2 flex items-center justify-between text-xs">
+                          <span className="font-medium text-[#151111]">{brandA.name}</span>
+                          <span className="font-bold text-[#151111]">{metric.format(metric.valueA)}</span>
                         </div>
-
-                        <div className="space-y-2">
-                          <div>
-                            <div className="mb-2 flex items-center justify-between text-xs">
-                              <span className="font-semibold text-[#151111]">{brandA.name}</span>
-                              <span className="font-bold text-[#8a2638]">{metric.format(metric.valueA)}</span>
-                            </div>
-                            <div className="h-3 overflow-hidden rounded-full bg-[#f0e3de]">
-                              <motion.div
-                                className="h-full rounded-full bg-[#151111]"
-                                style={{ width: `${percentA}%` }}
-                                initial={{ width: 0 }}
-                                animate={{ width: `${percentA}%` }}
-                                transition={{ duration: 0.8, ease: "easeOut" }}
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="mb-2 flex items-center justify-between text-xs">
-                              <span className="font-semibold text-[#151111]">{brandB.name}</span>
-                              <span className="font-bold text-[#8a2638]">{metric.format(metric.valueB)}</span>
-                            </div>
-                            <div className="h-3 overflow-hidden rounded-full bg-[#f0e3de]">
-                              <motion.div
-                                className="h-full rounded-full bg-[#8a2638]"
-                                style={{ width: `${percentB}%` }}
-                                initial={{ width: 0 }}
-                                animate={{ width: `${percentB}%` }}
-                                transition={{ duration: 0.8, ease: "easeOut" }}
-                              />
-                            </div>
-                          </div>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-[#f0e3de]">
+                          <motion.div
+                            className="h-full rounded-full bg-[#151111]"
+                            style={{ width: `${percentA}%` }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${percentA}%` }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                          />
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
 
-              {/* LIFECYCLE STAGE */}
-              <div className="mt-8 rounded-[24px] border border-[#eadbd4] bg-white p-8 shadow-sm">
-                <h3 className="mb-6 text-lg font-bold text-[#151111]">Lifecycle Stage</h3>
-                
-                <div className="space-y-4">
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-xs font-semibold text-[#6d6260]">
-                      <span>{brandA.name}</span>
-                      <span className="text-[#8a2638]">{getLifecycle(brandA.score)}</span>
-                    </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-[#f0e3de]">
-                      <div
-                        className="h-full rounded-full bg-[#151111]"
-                        style={{ width: `${(brandA.score / 100) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-xs font-semibold text-[#6d6260]">
-                      <span>{brandB.name}</span>
-                      <span className="text-[#8a2638]">{getLifecycle(brandB.score)}</span>
-                    </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-[#f0e3de]">
-                      <div
-                        className="h-full rounded-full bg-[#8a2638]"
-                        style={{ width: `${(brandB.score / 100) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* MINI GRÁFICO DE EVOLUCIÓN */}
-              <div className="mt-8 rounded-[24px] border border-[#eadbd4] bg-white p-8 shadow-sm">
-                <h3 className="mb-6 text-lg font-bold text-[#151111]">Evolución Temporal (6 meses)</h3>
-                
-                {(() => {
-                  const evolutionData = getEvolutionData(brandA, brandB);
-                  const maxScore = Math.max(
-                    ...evolutionData.map(d => Math.max(d.brandA, d.brandB))
-                  );
-
-                  return (
-                    <div className="space-y-6">
-                      {/* LÍNEA DE EVOLUCIÓN VISUAL */}
-                      <div className="space-y-4">
-                        {evolutionData.map((point, idx) => (
-                          <div key={idx} className="space-y-2">
-                            <p className="text-xs font-semibold uppercase text-[#6d6260]">
-                              {point.month}
-                            </p>
-
-                            <div className="space-y-1.5">
-                              {/* Brand A */}
-                              <div>
-                                <div className="mb-1 flex items-center justify-between text-xs">
-                                  <span className="font-semibold text-[#151111]">{brandA.name}</span>
-                                  <span className="font-bold text-[#151111]">{point.brandA}</span>
-                                </div>
-                                <div className="h-2 overflow-hidden rounded-full bg-[#f0e3de]">
-                                  <div
-                                    className="h-full rounded-full bg-[#151111]"
-                                    style={{ width: `${(point.brandA / maxScore) * 100}%` }}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Brand B */}
-                              <div>
-                                <div className="mb-1 flex items-center justify-between text-xs">
-                                  <span className="font-semibold text-[#151111]">{brandB.name}</span>
-                                  <span className="font-bold text-[#151111]">{point.brandB}</span>
-                                </div>
-                                <div className="h-2 overflow-hidden rounded-full bg-[#f0e3de]">
-                                  <div
-                                    className="h-full rounded-full bg-[#8a2638]"
-                                    style={{ width: `${(point.brandB / maxScore) * 100}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            {idx < evolutionData.length - 1 && (
-                              <div className="border-t border-dashed border-[#eadbd4]" />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* RESUMEN DE TENDENCIA */}
-                      <div className="mt-4 rounded-[16px] border border-[#eadbd4] bg-[#f9f6f3] p-4">
-                        <p className="text-xs font-semibold uppercase text-[#8a2638]">Tendencia</p>
-                        <p className="mt-2 text-sm leading-6 text-[#6d6260]">
-                          {(() => {
-                            const dataPoints = getEvolutionData(brandA, brandB);
-                            const firstA = dataPoints[0].brandA;
-                            const lastA = dataPoints[dataPoints.length - 1].brandA;
-                            const firstB = dataPoints[0].brandB;
-                            const lastB = dataPoints[dataPoints.length - 1].brandB;
-                            
-                            const growthA = ((lastA - firstA) / firstA * 100).toFixed(0);
-                            const growthB = ((lastB - firstB) / firstB * 100).toFixed(0);
-
-                            return `${brandA.name} ha crecido ${growthA}% en los últimos 6 meses, mientras que ${brandB.name} ha experimentado un cambio de ${growthB}%.`;
-                          })()}
-                        </p>
+                      <div>
+                        <div className="mb-2 flex items-center justify-between text-xs">
+                          <span className="font-medium text-[#151111]">{brandB.name}</span>
+                          <span className="font-bold text-[#8a2638]">{metric.format(metric.valueB)}</span>
+                        </div>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-[#f0e3de]">
+                          <motion.div
+                            className="h-full rounded-full bg-[#8a2638]"
+                            style={{ width: `${percentB}%` }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${percentB}%` }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  );
-                })()}
-              </div>
-
-              {/* Insight Final */}
-              <div className="mt-8 rounded-[24px] border border-[#eadbd4] bg-white p-8 shadow-sm">
-                <h3 className="mb-4 text-lg font-bold text-[#151111]">Insight Comparativo</h3>
-                <p className="text-sm leading-relaxed text-[#6d6260]">
-                  {getDynamicInsight(brandA, brandB)}
-                </p>
-              </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </article>
+
+          {/* RIGHT: Lifecycle + Evolution */}
+          <div className="space-y-6">
+            {/* Lifecycle */}
+            <div className="rounded-[24px] border border-[#eadbd4] bg-white p-6 shadow-sm md:p-8">
+              <h3 className="mb-6 text-lg font-bold text-[#151111]">Lifecycle Stage</h3>
+
+              <div className="space-y-5">
+                <div>
+                  <div className="mb-2 flex items-center justify-between text-xs font-semibold">
+                    <span className="text-[#151111]">{brandA.name}</span>
+                    <span className="text-[#8a2638]">{getLifecycle(brandA.score)}</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-[#f0e3de]">
+                    <div
+                      className="h-full rounded-full bg-[#151111]"
+                      style={{ width: `${(brandA.score / 100) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between text-xs font-semibold">
+                    <span className="text-[#151111]">{brandB.name}</span>
+                    <span className="text-[#8a2638]">{getLifecycle(brandB.score)}</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-[#f0e3de]">
+                    <div
+                      className="h-full rounded-full bg-[#8a2638]"
+                      style={{ width: `${(brandB.score / 100) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Evolution */}
+            <div className="rounded-[24px] border border-[#eadbd4] bg-white p-6 shadow-sm md:p-8">
+              <h3 className="mb-6 text-lg font-bold text-[#151111]">Evolución (6 meses)</h3>
+
+              {(() => {
+                const evolutionData = getEvolutionData(brandA, brandB);
+                const maxScore = Math.max(
+                  ...evolutionData.map(d => Math.max(d.brandA, d.brandB))
+                );
+
+                return (
+                  <div className="space-y-4">
+                    {evolutionData.map((point, idx) => (
+                      <div key={idx} className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#8a2638]">
+                          {point.month}
+                        </p>
+
+                        <div className="space-y-1.5">
+                          <div>
+                            <div className="mb-1 flex items-center justify-between text-xs">
+                              <span className="font-medium text-[#151111]">{brandA.name}</span>
+                              <span className="font-bold text-[#151111]">{point.brandA}</span>
+                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-[#f0e3de]">
+                              <div
+                                className="h-full rounded-full bg-[#151111]"
+                                style={{ width: `${(point.brandA / maxScore) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="mb-1 flex items-center justify-between text-xs">
+                              <span className="font-medium text-[#151111]">{brandB.name}</span>
+                              <span className="font-bold text-[#8a2638]">{point.brandB}</span>
+                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-[#f0e3de]">
+                              <div
+                                className="h-full rounded-full bg-[#8a2638]"
+                                style={{ width: `${(point.brandB / maxScore) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
       </section>
+
+      {/* AI Forecast Modal */}
+      <AIForecastModal
+        isOpen={forecastModal.isOpen}
+        brand={forecastModal.brand}
+        metric={forecastModal.metric}
+        timeHorizon={forecastModal.timeHorizon}
+        onClose={forecastModal.close}
+      />
     </PageContainer>
   );
 }

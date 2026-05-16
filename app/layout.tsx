@@ -5,6 +5,7 @@ import { Libre_Baskerville, Geist } from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
 import CustomCursor from "@/components/animations/CustomCursor";
 import RouteTransitionProvider from "@/components/animations/RouteTransitionProvider";
+import { ReportsProvider } from "@/context/ReportsContext";
 import { cn } from "@/lib/utils";
 
 const libre = Libre_Baskerville({
@@ -31,11 +32,13 @@ export default function RootLayout({
   return (
     <html lang="es" className={cn("font-sans", geist.variable)}>
       <body className={`${geist.variable} ${libre.variable} font-sans`}>
-        <RouteTransitionProvider>
-          <CustomCursor />
-          <Navbar />
-          {children}
-        </RouteTransitionProvider>
+        <ReportsProvider>
+          <RouteTransitionProvider>
+            <CustomCursor />
+            <Navbar />
+            {children}
+          </RouteTransitionProvider>
+        </ReportsProvider>
       </body>
     </html>
   );

@@ -1,260 +1,230 @@
-import Link from "next/link";
+"use client";
+
+import { useReports } from "@/context/ReportsContext";
 import PageContainer from "@/components/layout/PageContainer";
+import { generateReportCardData, getMiniVisualization } from "@/lib/reportCardHelpers";
+import Link from "next/link";
+import { motion } from "motion/react";
 
-const reportCards = [
-  {
-    title: "Informe de marcas",
-    tag: "Brand Intelligence",
-    description:
-      "Resumen del rendimiento digital de las marcas monitorizadas, destacando presencia mediática, popularidad relativa y posicionamiento por segmento.",
-    href: "/brands",
-    cta: "Ver marcas",
-  },
-  {
-    title: "Informe de tendencias",
-    tag: "Trend Radar",
-    description:
-      "Análisis de estilos, microtendencias y movimientos visuales con mayor crecimiento dentro del ecosistema moda.",
-    href: "/trends",
-    cta: "Ver tendencias",
-  },
-  {
-    title: "Informe comparativo",
-    tag: "Competitive Analysis",
-    description:
-      "Comparación entre marcas clave para detectar diferencias en menciones, percepción, popularidad y score global.",
-    href: "/comparison",
-    cta: "Ver comparativas",
-  },
-];
-
-const insights = [
-  {
-    title: "El lujo mantiene mayor fuerza aspiracional",
-    description:
-      "Las marcas luxury concentran una parte importante de la conversación digital y presentan una percepción sólida dentro del análisis.",
-  },
-  {
-    title: "La popularidad depende de la presencia mediática",
-    description:
-      "El índice de popularidad se calcula en relación con la marca con mayor número de menciones dentro del periodo analizado.",
-  },
-  {
-    title: "El sentimiento general es positivo",
-    description:
-      "La lectura de titulares y descripciones muestra una percepción favorable en la mayoría de marcas y tendencias monitorizadas.",
-  },
-];
-
-const executiveStats = [
-  {
-    label: "Áreas analizadas",
-    value: "4",
-    description: "Marcas, tendencias, comparativas y actualidad.",
-  },
-  {
-    label: "Tipo de lectura",
-    value: "360º",
-    description: "Visión global del comportamiento digital de la moda.",
-  },
-  {
-    label: "Enfoque",
-    value: "Data",
-    description: "Interpretación apoyada en métricas y visualización.",
-  },
-];
+function formatDate(date: Date): string {
+  return new Date(date).toLocaleDateString("es-ES", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
 
 export default function ReportsPage() {
+  const { reports } = useReports();
+
   return (
     <PageContainer>
-      <section className="pb-20 pt-12">
-        {/* HERO */}
-        <div className="mb-14 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.35em] text-[#8a2638]">
-              Informes estratégicos
-            </p>
+      {/* HERO SECTION */}
+      <div className="mb-16 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#151111] via-[#2a1f1c] to-[#151111] p-8 shadow-lg md:p-12">
+        {/* Background accents */}
+        <div className="absolute inset-0 -right-20 -top-20 h-80 w-80 rounded-full bg-[#8a2638]/10 blur-3xl" />
+        <div className="absolute inset-0 -bottom-20 -left-10 h-60 w-60 rounded-full bg-[#e5a9b6]/5 blur-2xl" />
 
-            <h1 className="max-w-4xl font-serif text-5xl font-bold leading-[0.95] text-[#151111] md:text-6xl">
-              Lectura ejecutiva del comportamiento digital de la moda.
-            </h1>
+        <div className="relative z-10">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.35em] text-[#e5a9b6]">
+            Centro documental
+          </p>
 
-            <p className="mt-6 max-w-2xl text-base leading-7 text-[#6d6260]">
-              Una sección pensada para resumir conclusiones, interpretar datos y
-              transformar métricas de marcas, tendencias y noticias en insights
-              claros para la toma de decisiones.
-            </p>
-          </div>
+          <h1 className="mb-4 font-serif text-5xl font-bold leading-tight text-white md:text-6xl">
+            Informes Estratégicos
+            <span className="block text-[#e5a9b6]">de Moda</span>
+          </h1>
 
-          <Link
-            href="/dashboard"
-            className="w-fit rounded-full bg-[#151111] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-[#2a2020]"
-          >
-            Ver dashboard
-          </Link>
+          <p className="mt-6 max-w-2xl text-base leading-8 text-white/80">
+            Biblioteca de análisis comparativos premium. Accede a informes
+            detallados sobre el desempeño competitivo de las principales marcas
+            en el panorama digital de moda.
+          </p>
         </div>
+      </div>
 
-        {/* STATS */}
-        <div className="mb-12 grid gap-5 md:grid-cols-3">
-          {executiveStats.map((stat) => (
-            <article
-              key={stat.label}
-              className="rounded-[26px] border border-[#eadbd4] bg-white p-6 shadow-sm"
-            >
-              <p className="mb-3 text-sm font-semibold text-[#8a2638]">
-                {stat.label}
-              </p>
+      {/* REPORTS GRID */}
+      {reports.length > 0 ? (
+        <div>
+          <h2 className="mb-12 font-serif text-3xl font-bold text-[#151111]">
+            Informes Generados
+          </h2>
 
-              <h2 className="text-4xl font-bold text-[#151111]">
-                {stat.value}
-              </h2>
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {reports.map((report, index) => {
+              const cardData = generateReportCardData(
+                report.brandA,
+                report.brandB,
+                report.scoreA,
+                report.scoreB,
+                report.mentionsA,
+                report.mentionsB,
+                report.sentimentA,
+                report.sentimentB
+              );
+              const vizData = getMiniVisualization(
+                report.scoreA,
+                report.scoreB
+              );
 
-              <p className="mt-4 text-sm leading-6 text-[#6d6260]">
-                {stat.description}
-              </p>
-            </article>
-          ))}
-        </div>
-
-        {/* RESUMEN EJECUTIVO */}
-        <section className="mb-12 overflow-hidden rounded-[36px] border border-[#eadbd4] bg-[#fffdf9] shadow-[0_24px_70px_rgba(60,35,30,0.08)]">
-          <div className="grid lg:grid-cols-[0.85fr_1.15fr]">
-            <div className="bg-[#151111] p-8 text-white md:p-10">
-              <p className="mb-4 text-xs font-bold uppercase tracking-[0.35em] text-[#e5a9b6]">
-                Resumen ejecutivo
-              </p>
-
-              <h2 className="font-serif text-4xl font-bold leading-tight md:text-5xl">
-                Qué está ocurriendo en el ecosistema moda.
-              </h2>
-
-              <p className="mt-6 text-sm leading-7 text-white/65">
-                El informe sintetiza la información procedente de marcas,
-                tendencias y conversación digital para detectar patrones de
-                crecimiento, notoriedad y percepción.
-              </p>
-            </div>
-
-            <div className="grid gap-5 p-8 md:p-10">
-              {insights.map((insight, index) => (
-                <article
-                  key={insight.title}
-                  className="rounded-[24px] border border-[#eadbd4] bg-white p-6"
+              return (
+                <motion.div
+                  key={report.slug}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="group flex flex-col overflow-hidden rounded-[24px] border border-[#eadbd4] bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
                 >
-                  <div className="mb-4 flex items-center gap-3">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#151111] text-xs font-bold text-white">
-                      {index + 1}
-                    </span>
-
-                    <h3 className="font-serif text-2xl font-bold text-[#151111]">
-                      {insight.title}
-                    </h3>
+                  {/* Header Premium */}
+                  <div className="border-b border-[#eadbd4] bg-gradient-to-br from-[#f9f6f3] to-white p-6 md:p-7">
+                    <div className="mb-3 flex items-baseline justify-between gap-3">
+                      <h3 className="font-serif text-xl font-bold leading-tight text-[#151111] md:text-2xl">
+                        {report.brandA}
+                        <span className="mx-2 text-[#8a2638]">×</span>
+                        {report.brandB}
+                      </h3>
+                    </div>
+                    <p className="text-xs text-[#6d6260]">
+                      {formatDate(report.generatedAt)}
+                    </p>
                   </div>
 
-                  <p className="text-sm leading-7 text-[#6d6260]">
-                    {insight.description}
-                  </p>
-                </article>
-              ))}
-            </div>
+                  {/* Content Premium */}
+                  <div className="flex flex-1 flex-col p-6 md:p-7">
+                    {/* Status Badge */}
+                    <div className="mb-4">
+                      <div
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${cardData.statusColor}`}
+                      >
+                        <span className="relative flex h-2 w-2">
+                          <span className={`absolute inline-flex h-full w-full rounded-full ${
+                            cardData.status === "liderazgo_consolidado"
+                              ? "bg-emerald-400"
+                              : cardData.status === "alta_competitividad"
+                                ? "bg-amber-400"
+                                : cardData.status === "equilibrio"
+                                  ? "bg-blue-400"
+                                  : "bg-rose-400"
+                          } opacity-75 animate-pulse`}
+                          />
+                          <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                            cardData.status === "liderazgo_consolidado"
+                              ? "bg-emerald-500"
+                              : cardData.status === "alta_competitividad"
+                                ? "bg-amber-500"
+                                : cardData.status === "equilibrio"
+                                  ? "bg-blue-500"
+                                  : "bg-rose-500"
+                          }`}
+                          />
+                        </span>
+                        {cardData.statusLabel}
+                      </div>
+                    </div>
+
+                    {/* Insight Premium */}
+                    <p className="mb-6 text-sm leading-6 text-[#151111] font-medium">
+                      {cardData.insight}
+                    </p>
+
+                    {/* Mini Visualization - Score Bars */}
+                    <div className="mb-6 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-16 text-right">
+                          <p className="text-xs font-semibold text-[#6d6260] uppercase">
+                            {report.brandA}
+                          </p>
+                          <p className="text-lg font-bold text-[#151111]">
+                            {report.scoreA}
+                          </p>
+                        </div>
+                        <div className="flex-1">
+                          <div className="h-2 overflow-hidden rounded-full bg-[#f0eded]">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${vizData.barA}%` }}
+                              transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
+                              className="h-full bg-[#8a2638]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="w-16 text-right">
+                          <p className="text-xs font-semibold text-[#6d6260] uppercase">
+                            {report.brandB}
+                          </p>
+                          <p className="text-lg font-bold text-[#8a2638]">
+                            {report.scoreB}
+                          </p>
+                        </div>
+                        <div className="flex-1">
+                          <div className="h-2 overflow-hidden rounded-full bg-[#f0eded]">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${vizData.barB}%` }}
+                              transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+                              className="h-full bg-[#e5a9b6]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Dominant Metric */}
+                    <div className="mb-6 rounded-[12px] border border-[#eadbd4] bg-[#f9f6f3] p-4">
+                      <p className="mb-1 text-xs font-semibold text-[#8a2638] uppercase">
+                        {cardData.dominantMetric}
+                      </p>
+                      <p className="text-sm font-bold text-[#151111]">
+                        {cardData.dominantValue}
+                      </p>
+                    </div>
+
+                    {/* Premium CTA */}
+                    <Link href={`/reports/${report.slug}`} className="mt-auto">
+                      <button className="group/btn w-full rounded-[12px] border-2 border-[#8a2638] bg-white px-4 py-3 text-sm font-bold uppercase tracking-[0.08em] text-[#8a2638] transition duration-300 hover:bg-[#8a2638] hover:text-white active:scale-95">
+                        <span className="flex items-center justify-center gap-2">
+                          Abrir informe
+                          <svg
+                            className="h-4 w-4 transition duration-300 group-hover/btn:translate-x-0.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2.5}
+                              d="M13 7l5 5m0 0l-5 5m5-5H6"
+                            />
+                          </svg>
+                        </span>
+                      </button>
+                    </Link>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
-        </section>
+        </div>
+      ) : (
+        <div className="rounded-[20px] border-2 border-dashed border-[#eadbd4] bg-[#f9f6f3] p-12 text-center">
+          <p className="mb-2 font-serif text-2xl font-bold text-[#151111]">
+            No hay informes generados aún
+          </p>
+          <p className="text-[#6d6260]">
+            Ve al comparador y genera tu primer informe comparativo.
+          </p>
 
-        {/* BLOQUES DE INFORME */}
-        <section className="mb-12">
-          <div className="mb-7">
-            <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-[#8a2638]">
-              Informes disponibles
-            </p>
-
-            <h2 className="font-serif text-4xl font-bold text-[#151111]">
-              Áreas de análisis
-            </h2>
-
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-[#6d6260]">
-              Accede a cada bloque analítico para consultar datos más detallados
-              según el área que quieras estudiar.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {reportCards.map((report) => (
-              <article
-                key={report.title}
-                className="flex min-h-[310px] flex-col rounded-[30px] border border-[#eadbd4] bg-white p-7 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
-              >
-                <span className="mb-5 w-fit rounded-full bg-[#f7ece8] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#8a2638]">
-                  {report.tag}
-                </span>
-
-                <h3 className="font-serif text-3xl font-bold leading-tight text-[#151111]">
-                  {report.title}
-                </h3>
-
-                <p className="mt-5 text-sm leading-7 text-[#6d6260]">
-                  {report.description}
-                </p>
-
-                <Link
-                  href={report.href}
-                  className="mt-auto inline-flex w-fit rounded-full bg-[#151111] px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#2a2020]"
-                >
-                  {report.cta}
-                </Link>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        {/* CONCLUSIÓN */}
-        <section className="rounded-[36px] bg-[#151111] p-8 text-white shadow-xl md:p-10">
-          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-            <div>
-              <p className="mb-4 text-xs font-bold uppercase tracking-[0.35em] text-[#e5a9b6]">
-                Conclusión del informe
-              </p>
-
-              <h2 className="font-serif text-4xl font-bold leading-tight md:text-5xl">
-                Los datos ayudan a entender qué marcas y estilos están ganando
-                espacio.
-              </h2>
-            </div>
-
-            <div>
-              <p className="text-sm leading-7 text-white/70">
-                TrendFashion Analytics permite convertir información dispersa
-                del sector moda en una lectura visual y ordenada. La combinación
-                de menciones, popularidad, sentimiento y tendencias facilita
-                detectar oportunidades, comparar marcas y comprender mejor la
-                conversación digital.
-              </p>
-
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link
-                  href="/brands"
-                  className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#151111] transition hover:-translate-y-0.5"
-                >
-                  Analizar marcas
-                </Link>
-
-                <Link
-                  href="/trends"
-                  className="rounded-full border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                >
-                  Ver tendencias
-                </Link>
-
-                <Link
-                  href="/comparison"
-                  className="rounded-full border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                >
-                  Comparar marcas
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
-      </section>
+          <Link href="/comparison">
+            <button className="mt-6 rounded-[12px] border-2 border-[#8a2638] bg-[#8a2638] px-6 py-3 text-sm font-bold uppercase tracking-[0.1em] text-white transition hover:bg-[#a83450] active:scale-95">
+              Ir al comparador
+            </button>
+          </Link>
+        </div>
+      )}
     </PageContainer>
   );
 }

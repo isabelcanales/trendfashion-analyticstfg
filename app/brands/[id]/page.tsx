@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import PageContainer from "@/components/layout/PageContainer";
+import AIForecastModal from "@/components/AIForecastModal";
+import { useAIForecastModal } from "@/hooks/useAIForecastModal";
 import { getBrandMetrics } from "@/lib/brandMetrics";
 import { getNews } from "@/lib/news";
 import { BrandMetricsResponse } from "@/types/brandMetrics";
@@ -373,6 +375,8 @@ export default function BrandDetailPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodId>("6m");
   const [selectedMetric, setSelectedMetric] = useState<MetricId>("mentions");
 
+  const forecastModal = useAIForecastModal();
+
   const brands = useMemo<BrandDetail[]>(() => {
     if (!data) return [];
 
@@ -562,7 +566,7 @@ export default function BrandDetailPage() {
               </p>
             </div>
 
-            <div className="flex flex-col items-start gap-3 lg:items-end">
+            <div className="flex flex-col items-start gap-2 lg:items-end">
               <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#151111] text-3xl font-bold text-white">
                 {brand.score}
               </div>
@@ -1090,6 +1094,27 @@ export default function BrandDetailPage() {
           </motion.div>
         </AnimatePresence>
       </section>
+
+      {/* AI Forecast Modal */}
+      <AIForecastModal
+        isOpen={forecastModal.isOpen}
+        brand={forecastModal.brand}
+        metric={forecastModal.metric}
+        timeHorizon={forecastModal.timeHorizon}
+        onClose={forecastModal.close}
+      />
+
+      {/* Floating AI Forecast Button */}
+      <motion.button
+        onClick={() => forecastModal.open(brand?.name || "", "score")}
+        className="fixed bottom-5 right-5 z-30 flex h-[60px] w-[60px] items-center justify-center rounded-full bg-gradient-to-br from-[#8a2638] to-[#b83d52] text-2xl shadow-xl transition hover:shadow-2xl hover:shadow-[#8a2638]/40 md:bottom-8 md:right-8 md:h-[72px] md:w-[72px]"
+        whileHover={{ scale: 1.08, y: -3 }}
+        whileTap={{ scale: 0.93 }}
+        aria-label="Abrir predicción IA"
+        title="Predicción IA"
+      >
+        ✨
+      </motion.button>
     </PageContainer>
   );
 }
