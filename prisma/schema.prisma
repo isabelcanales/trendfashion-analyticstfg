@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String?
+  email         String?       @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  consultancy   String?
+  subscription  String        @default("free")
+  role          String        @default("user")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  accounts      Account[]
+  reviews       BrandReview[]
+  reports       Report[]
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model Brand {
+  id              String                @id @default(cuid())
+  name            String                @unique
+  category        String
+  country         String
+  logo            String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  metricsHistory  BrandMetricsHistory[]
+  reviews         BrandReview[]
+  forecasts       Forecast[]
+  reportsAsBrand2 Report[]              @relation("Brand2")
+  reportsAsBrand1 Report[]              @relation("Brand1")
+
+  @@map("brands")
+}
+
+model BrandMetricsHistory {
+  id         String   @id @default(cuid())
+  brandId    String
+  date       DateTime
+  mentions   Int
+  sentiment  Float
+  popularity Float
+  score      Float
+  createdAt  DateTime @default(now())
+  brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, date])
+  @@index([brandId])
+  @@index([date])
+  @@map("brand_metrics_history")
+}
+
+model Forecast {
+  id              String    @id @default(cuid())
+  brandId         String
+  metricType      String
+  predictedValue  Float
+  confidenceLevel Float
+  forecastPeriod  String
+  createdAt       DateTime  @default(now())
+  validatedAt     DateTime?
+  actualValue     Float?
+  isAccurate      Boolean?
+  brand           Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
+  @@index([createdAt])
+  @@map("forecasts")
+}
+
+model Report {
+  id               String   @id @default(cuid())
+  userId           String
+  brand1Id         String
+  brand2Id         String
+  title            String
+  slug             String   @unique
+  executiveSummary String
+  insights         String
+  conclusion       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  brand2           Brand    @relation("Brand2", fields: [brand2Id], references: [id], onDelete: Cascade)
+  brand1           Brand    @relation("Brand1", fields: [brand1Id], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("reports")
+}
+
+model BrandReview {
+  id             String   @id @default(cuid())
+  userId         String
+  brandId        String
+  rating         Int
+  comment        String
+  sentimentScore Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  brand          Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([brandId])
+  @@index([rating])
+  @@map("brand_reviews")
+}

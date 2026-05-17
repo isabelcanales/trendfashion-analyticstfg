@@ -126,7 +126,7 @@ export default function ReportPage() {
   const conclusion = generateConclusion(brandA, brandB);
 
   return (
-    <PageContainer id="report-container">
+    <PageContainer className="report-container">
       {/* ===== PRINT-ONLY: PDF LAYOUT (hidden on screen, shown in print) ===== */}
       <div className="print-only">
         {/* ===== PRINT REPORT - PAGE 1 & 2 ===== */}

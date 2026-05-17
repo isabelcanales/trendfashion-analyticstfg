@@ -120,7 +120,7 @@ export default function AIForecastModal({
     // 5. RESPUESTA POR DEFECTO (PREGUNTA DESCONOCIDA)
     const defaultResponses: string[] = [
       `Interesante pregunta. Para mejor ayuda, cuéntame si quieres saber sobre la fase de ${brandName}, puntos de mejora o tendencias. Cada una tiene respuestas muy diferentes.`,
-      `Puedo orientarte mejor si me preguntas sobre su estado actual, recomendaciones estratégicas o tendencias que puede aprovechar. ¿Cuál te interesa más?`,
+      `f ¡tarte mejor si me preguntas sobre su estado actual, recomendaciones estratégicas o tendencias que puede aprovechar. ¿Cuál te interesa más?`,
       `No estoy seguro de entender esa pregunta. ¿Hablamos de la estrategia de ${brandName}? Puedo ayudarte con su fase, puntos fuertes/débiles, o perspectivas de mercado.`,
     ];
     return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];

@@ -5,7 +5,9 @@ import { Libre_Baskerville, Geist } from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
 import CustomCursor from "@/components/animations/CustomCursor";
 import RouteTransitionProvider from "@/components/animations/RouteTransitionProvider";
+import AIChatbot from "@/components/AIChatbot";
 import { ReportsProvider } from "@/context/ReportsContext";
+import { AuthProvider } from "@/app/providers";
 import { cn } from "@/lib/utils";
 
 const libre = Libre_Baskerville({
@@ -30,15 +32,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={cn("font-sans", geist.variable)}>
+    <html lang="es" className={cn("font-sans overflow-x-hidden", geist.variable)}>
       <body className={`${geist.variable} ${libre.variable} font-sans`}>
-        <ReportsProvider>
-          <RouteTransitionProvider>
-            <CustomCursor />
-            <Navbar />
-            {children}
-          </RouteTransitionProvider>
-        </ReportsProvider>
+        <AuthProvider>
+          <ReportsProvider>
+            <RouteTransitionProvider>
+              <CustomCursor />
+              <Navbar />
+              <AIChatbot />
+              {children}
+            </RouteTransitionProvider>
+          </ReportsProvider>
+        </AuthProvider>
       </body>
     </html>
   );
